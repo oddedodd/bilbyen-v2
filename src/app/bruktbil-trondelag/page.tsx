@@ -7,6 +7,11 @@ export default async function Page() {
   const cars = await fetchBruktbilTrondelagCars()
 
   return (
-    <CarList cars={cars} title={group.name} description={group.description} />
+    <CarList
+      cars={cars}
+      groupSlug={group.slug}
+      title={group.name}
+      description={group.description}
+    />
   )
 }

@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# local auth seed with temporary admin password
+/supabase/migrations/20260607153001_seed_admin_user.sql
+
 # vercel
 .vercel
 

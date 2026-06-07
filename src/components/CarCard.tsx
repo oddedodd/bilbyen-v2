@@ -1,15 +1,39 @@
-import type { Car } from '@/lib/types'
+'use client'
 
-export default function CarCard({ car }: { car: Car }) {
+import type { Car } from '@/lib/types'
+import { trackCarEvent } from '@/lib/analytics-client'
+
+interface CarCardProps {
+  car: Car
+  analytics?: {
+    groupSlug: string
+    pagePath?: string
+    carouselKey?: string
+    position?: number
+  }
+}
+
+export default function CarCard({ car, analytics }: CarCardProps) {
   const imageUrl = car.imageUrl
     ? car.imageUrl.replace('/dynamic/default/', '/dynamic/480x360c/')
     : null
+
+  function trackClick() {
+    if (!analytics) return
+
+    trackCarEvent({
+      eventType: 'ad_click',
+      car,
+      ...analytics,
+    })
+  }
 
   return (
     <a
       href={car.adUrl ?? '#'}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={trackClick}
       className="group flex h-full min-h-[23rem] w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:border-gray-300 hover:shadow-md sm:min-h-[22rem] lg:min-h-[27rem]"
     >
       <div className="relative h-48 w-full shrink-0 bg-gray-100 sm:h-40 md:h-44 lg:h-64">

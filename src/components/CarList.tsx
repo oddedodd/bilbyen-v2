@@ -26,12 +26,14 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 interface CarListProps {
   cars: Car[]
+  groupSlug: string
   title?: string
   description?: string
 }
 
 export default function CarList({
   cars,
+  groupSlug,
   title = 'Biler til salgs',
   description,
 }: CarListProps) {
@@ -219,7 +221,13 @@ export default function CarList({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {sorted.map((car) => (
-              <CarCard key={car.id} car={car} />
+              <CarCard
+                key={car.id}
+                car={car}
+                analytics={{
+                  groupSlug,
+                }}
+              />
             ))}
           </div>
         )}

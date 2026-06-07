@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import type { Swiper as SwiperType } from 'swiper'
 import { A11y, Autoplay } from 'swiper/modules'
 import { Swiper, SwiperSlide } from 'swiper/react'
+import { trackCarEvent } from '@/lib/analytics-client'
 import type { Car } from '@/lib/types'
 import CarCard from './CarCard'
 import 'swiper/css'
@@ -14,6 +15,7 @@ interface CarCarouselProps {
   description: string
   href: string
   cars: Car[]
+  groupSlug: string
 }
 
 export default function CarCarousel({
@@ -21,10 +23,12 @@ export default function CarCarousel({
   description,
   href,
   cars,
+  groupSlug,
 }: CarCarouselProps) {
   const [swiper, setSwiper] = useState<SwiperType | null>(null)
   const [isPlaying, setIsPlaying] = useState(true)
   const visibleCars = cars.slice(0, 20)
+  const carouselKey = `carousel:${groupSlug}`
 
   function toggleAutoplay() {
     if (!swiper) return
@@ -87,9 +91,14 @@ export default function CarCarousel({
                 }}
                 className="-mx-4 px-4 pb-4 [&_.swiper-slide]:h-auto [&_.swiper-slide]:self-stretch [&_.swiper-wrapper]:items-stretch"
               >
-                {visibleCars.map((car) => (
+                {visibleCars.map((car, index) => (
                   <SwiperSlide key={car.id} className="!flex h-auto">
-                    <CarCard car={car} />
+                    <TrackedCarouselCard
+                      car={car}
+                      carouselKey={carouselKey}
+                      groupSlug={groupSlug}
+                      position={index + 1}
+                    />
                   </SwiperSlide>
                 ))}
               </Swiper>
@@ -138,6 +147,61 @@ function CarouselFallback({ cars }: { cars: Car[] }) {
       {cars.slice(0, 3).map((car) => (
         <CarCard key={car.id} car={car} />
       ))}
+    </div>
+  )
+}
+
+function TrackedCarouselCard({
+  car,
+  carouselKey,
+  groupSlug,
+  position,
+}: {
+  car: Car
+  carouselKey: string
+  groupSlug: string
+  position: number
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const hasTracked = useRef(false)
+
+  useEffect(() => {
+    const element = ref.current
+    if (!element || hasTracked.current) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting || hasTracked.current) return
+
+        hasTracked.current = true
+        trackCarEvent({
+          eventType: 'carousel_impression',
+          car,
+          groupSlug,
+          pagePath: window.location.pathname,
+          carouselKey,
+          position,
+        })
+        observer.disconnect()
+      },
+      { threshold: 0.5 }
+    )
+
+    observer.observe(element)
+
+    return () => observer.disconnect()
+  }, [car, carouselKey, groupSlug, position])
+
+  return (
+    <div ref={ref} className="flex h-full w-full">
+      <CarCard
+        car={car}
+        analytics={{
+          groupSlug,
+          carouselKey,
+          position,
+        }}
+      />
     </div>
   )
 }
