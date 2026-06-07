@@ -15,12 +15,12 @@ export default async function Page() {
   const bruktbilTrondelag = carGroups['bruktbil-trondelag']
 
   return (
-    <main className="min-h-screen bg-gray-50 py-6 dark:bg-gray-950">
+    <main className="min-h-screen bg-white py-6">
       <div className="mx-auto max-w-7xl px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-950 dark:text-white">
+        <h1 className="text-3xl font-bold text-gray-950">
           Bruktbiler
         </h1>
-        <p className="mt-2 max-w-2xl text-gray-600 dark:text-gray-400">
+        <p className="mt-2 max-w-2xl text-gray-600">
           Finn bruktbiler fra lokale forhandlere i Bilbyen Namsos og Bruktbil
           Trøndelag.
         </p>

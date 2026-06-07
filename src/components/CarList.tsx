@@ -105,20 +105,20 @@ export default function CarList({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
+      <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/95 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <Link
                 href="/"
-                className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+                className="text-sm font-medium text-sky-700 hover:text-sky-900 hover:underline"
               >
                 Til forsiden
               </Link>
               {description && (
-                <p className="mt-1 max-w-3xl text-sm text-gray-600 dark:text-gray-400">
+                <p className="mt-1 max-w-3xl text-sm text-gray-600">
                   {description}
                 </p>
               )}
@@ -126,9 +126,9 @@ export default function CarList({
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white shrink-0">
+            <h1 className="text-xl font-bold text-gray-950 shrink-0">
               {title}
-              <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+              <span className="ml-2 text-sm font-normal text-gray-500">
                 ({sorted.length} av {cars.length})
               </span>
             </h1>
@@ -139,14 +139,14 @@ export default function CarList({
               placeholder="Søk merke, modell..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-950 placeholder-gray-400 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
             />
 
             {/* Sort */}
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
             >
               {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
                 <option key={key} value={key}>
@@ -161,7 +161,7 @@ export default function CarList({
             <select
               value={filterMake}
               onChange={(e) => setFilterMake(e.target.value)}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
             >
               <option value="">Alle merker</option>
               {makes.map((m) => (
@@ -172,7 +172,7 @@ export default function CarList({
             <select
               value={filterFuel}
               onChange={(e) => setFilterFuel(e.target.value)}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
             >
               <option value="">Alle drivstoff</option>
               {fuels.map((f) => (
@@ -185,7 +185,7 @@ export default function CarList({
               placeholder="Max pris (kr)"
               value={maxPrice}
               onChange={(e) => setMaxPrice(e.target.value)}
-              className="w-36 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-36 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-950 placeholder-gray-400 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
             />
 
             <input
@@ -195,13 +195,13 @@ export default function CarList({
               onChange={(e) => setMinYear(e.target.value)}
               min={1990}
               max={2026}
-              className="w-24 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-24 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-950 placeholder-gray-400 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
             />
 
             {hasFilters && (
               <button
                 onClick={clearFilters}
-                className="text-sm text-blue-600 dark:text-blue-400 hover:underline px-1"
+                className="text-sm text-sky-700 hover:text-sky-900 hover:underline px-1"
               >
                 Nullstill filter
               </button>
@@ -213,7 +213,7 @@ export default function CarList({
       {/* Car grid */}
       <main className="max-w-7xl mx-auto px-4 py-6">
         {sorted.length === 0 ? (
-          <div className="text-center py-20 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-20 text-gray-500">
             Ingen biler samsvarer med søket ditt.
           </div>
         ) : (

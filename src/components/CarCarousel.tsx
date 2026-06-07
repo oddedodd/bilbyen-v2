@@ -1,9 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useRef } from 'react'
+import { Suspense, useState } from 'react'
+import type { Swiper as SwiperType } from 'swiper'
+import { A11y, Autoplay } from 'swiper/modules'
+import { Swiper, SwiperSlide } from 'swiper/react'
 import type { Car } from '@/lib/types'
 import CarCard from './CarCard'
+import 'swiper/css'
 
 interface CarCarouselProps {
   title: string
@@ -18,17 +22,21 @@ export default function CarCarousel({
   href,
   cars,
 }: CarCarouselProps) {
-  const scrollerRef = useRef<HTMLDivElement>(null)
+  const [swiper, setSwiper] = useState<SwiperType | null>(null)
+  const [isPlaying, setIsPlaying] = useState(true)
   const visibleCars = cars.slice(0, 20)
 
-  function scrollByCard(direction: -1 | 1) {
-    const scroller = scrollerRef.current
-    if (!scroller) return
+  function toggleAutoplay() {
+    if (!swiper) return
 
-    scroller.scrollBy({
-      left: direction * Math.min(scroller.clientWidth, 980),
-      behavior: 'smooth',
-    })
+    if (isPlaying) {
+      swiper.autoplay.stop()
+      setIsPlaying(false)
+      return
+    }
+
+    swiper.autoplay.start()
+    setIsPlaying(true)
   }
 
   return (
@@ -36,34 +44,18 @@ export default function CarCarousel({
       <div className="mx-auto max-w-7xl px-4">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-950 dark:text-white">
+            <h2 className="text-2xl font-bold text-gray-950">
               {title}
             </h2>
-            <p className="mt-1 max-w-2xl text-sm text-gray-600 dark:text-gray-400">
+            <p className="mt-1 max-w-2xl text-sm text-gray-600">
               {description}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => scrollByCard(-1)}
-              aria-label={`Forrige biler i ${title}`}
-              className="grid h-10 w-10 place-items-center rounded-lg border border-gray-300 bg-white text-lg font-semibold text-gray-800 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800"
-            >
-              &lt;
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollByCard(1)}
-              aria-label={`Neste biler i ${title}`}
-              className="grid h-10 w-10 place-items-center rounded-lg border border-gray-300 bg-white text-lg font-semibold text-gray-800 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800"
-            >
-              &gt;
-            </button>
+          <div className="flex items-center">
             <Link
               href={href}
-              className="rounded-lg bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200"
+              className="rounded-lg bg-gray-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
             >
               Se alle
             </Link>
@@ -71,25 +63,141 @@ export default function CarCarousel({
         </div>
 
         {visibleCars.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-gray-300 px-4 py-12 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-12 text-center text-sm text-gray-500">
             Ingen biler funnet.
           </div>
         ) : (
-          <div
-            ref={scrollerRef}
-            className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-4 [scrollbar-width:thin]"
-          >
-            {visibleCars.map((car) => (
-              <div
-                key={car.id}
-                className="w-[82vw] max-w-[21rem] shrink-0 snap-start sm:w-[20rem]"
+          <div className="relative">
+            <Suspense fallback={<CarouselFallback cars={visibleCars} />}>
+              <Swiper
+                modules={[A11y, Autoplay]}
+                onSwiper={setSwiper}
+                autoplay={{
+                  delay: 4500,
+                  disableOnInteraction: false,
+                  pauseOnMouseEnter: true,
+                }}
+                loop={visibleCars.length > 3}
+                slidesPerView={1}
+                spaceBetween={16}
+                breakpoints={{
+                  640: {
+                    slidesPerView: 3,
+                  },
+                }}
+                className="-mx-4 px-4 pb-4 [&_.swiper-slide]:h-auto [&_.swiper-slide]:self-stretch [&_.swiper-wrapper]:items-stretch"
               >
-                <CarCard car={car} />
-              </div>
-            ))}
+                {visibleCars.map((car) => (
+                  <SwiperSlide key={car.id} className="!flex h-auto">
+                    <CarCard car={car} />
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            </Suspense>
+
+            <button
+              type="button"
+              onClick={() => swiper?.slidePrev()}
+              aria-label={`Forrige biler i ${title}`}
+              className="absolute left-2 top-1/2 z-10 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-gray-950 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50"
+            >
+              <ChevronLeftIcon />
+            </button>
+            <div className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-3">
+              <button
+                type="button"
+                onClick={toggleAutoplay}
+                aria-label={
+                  isPlaying
+                    ? `Pause automatisk visning av ${title}`
+                    : `Start automatisk visning av ${title}`
+                }
+                className="grid h-12 w-12 place-items-center rounded-full bg-white/95 text-gray-950 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50"
+              >
+                {isPlaying ? <PauseIcon /> : <PlayIcon />}
+              </button>
+              <button
+                type="button"
+                onClick={() => swiper?.slideNext()}
+                aria-label={`Neste biler i ${title}`}
+                className="grid h-12 w-12 place-items-center rounded-full bg-white/95 text-gray-950 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50"
+              >
+                <ChevronRightIcon />
+              </button>
+            </div>
           </div>
         )}
       </div>
     </section>
+  )
+}
+
+function CarouselFallback({ cars }: { cars: Car[] }) {
+  return (
+    <div className="-mx-4 grid grid-cols-1 gap-4 px-4 pb-4 sm:grid-cols-3">
+      {cars.slice(0, 3).map((car) => (
+        <CarCard key={car.id} car={car} />
+      ))}
+    </div>
+  )
+}
+
+function ChevronLeftIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  )
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  )
+}
+
+function PauseIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path d="M8 5a1 1 0 0 0-1 1v12a1 1 0 1 0 2 0V6a1 1 0 0 0-1-1Zm8 0a1 1 0 0 0-1 1v12a1 1 0 1 0 2 0V6a1 1 0 0 0-1-1Z" />
+    </svg>
+  )
+}
+
+function PlayIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path d="M8 5.6v12.8a1 1 0 0 0 1.53.85l9.6-6.4a1 1 0 0 0 0-1.7l-9.6-6.4A1 1 0 0 0 8 5.6Z" />
+    </svg>
   )
 }
