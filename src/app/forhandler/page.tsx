@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { requireDealerUser } from '@/lib/dealer-auth'
 import {
   getDealerDashboardStats,
@@ -11,7 +12,27 @@ interface DealerDashboardPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
 }
 
-export default async function DealerDashboardPage({
+export default function DealerDashboardPage({
+  searchParams,
+}: DealerDashboardPageProps) {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <DealerDashboard searchParams={searchParams} />
+    </Suspense>
+  )
+}
+
+function DashboardLoading() {
+  return (
+    <main className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-7xl px-4 py-6 text-sm text-gray-500">
+        Laster …
+      </div>
+    </main>
+  )
+}
+
+async function DealerDashboard({
   searchParams,
 }: DealerDashboardPageProps) {
   const user = await requireDealerUser()
