@@ -32,12 +32,14 @@ export default async function Page() {
         description={bilbyen.description}
         href={bilbyen.path}
         cars={prepareCarouselCars(bilbyenCars)}
+        groupSlug={bilbyen.slug}
       />
       <CarCarousel
         title={bruktbilTrondelag.name}
         description={bruktbilTrondelag.description}
         href={bruktbilTrondelag.path}
         cars={prepareCarouselCars(bruktbilTrondelagCars)}
+        groupSlug={bruktbilTrondelag.slug}
       />
     </main>
   )
