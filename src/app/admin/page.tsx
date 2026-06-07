@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { requireAdminUser } from '@/lib/admin-auth'
 import { getAdminDealers } from '@/lib/admin-data'
 import { createDealerUser, logoutAdmin } from './actions'
@@ -15,7 +16,25 @@ const ERROR_MESSAGES: Record<string, string> = {
   'user-exists': 'E-postadressen finnes allerede i Supabase Auth.',
 }
 
-export default async function AdminPage({ searchParams }: AdminPageProps) {
+export default function AdminPage({ searchParams }: AdminPageProps) {
+  return (
+    <Suspense fallback={<AdminLoading />}>
+      <AdminDashboard searchParams={searchParams} />
+    </Suspense>
+  )
+}
+
+function AdminLoading() {
+  return (
+    <main className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-7xl px-4 py-6 text-sm text-gray-500">
+        Laster …
+      </div>
+    </main>
+  )
+}
+
+async function AdminDashboard({ searchParams }: AdminPageProps) {
   const adminUser = await requireAdminUser()
   const [dealers, resolvedSearchParams] = await Promise.all([
     getAdminDealers(),
