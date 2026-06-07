@@ -1,5 +1,6 @@
 import { XMLParser } from 'fast-xml-parser'
 import { cacheLife } from 'next/cache'
+import { carGroups, type CarGroupConfig } from './car-groups'
 import type { Car } from './types'
 
 const FINN_API_BASE = 'https://cache.api.finn.no'
@@ -8,11 +9,50 @@ export async function fetchFinnCars(): Promise<Car[]> {
   'use cache'
   cacheLife('minutes')
 
-  const apiKey = process.env.FINN_API_KEY
   const orgId = process.env.FINN_ORGID
 
-  if (!apiKey || !orgId) {
-    throw new Error('FINN_API_KEY and FINN_ORGID must be set in environment')
+  if (!orgId) {
+    throw new Error('FINN_ORGID must be set in environment')
+  }
+
+  return fetchFinnCarsByOrgId(orgId)
+}
+
+export async function fetchBilbyenCars(): Promise<Car[]> {
+  'use cache'
+  cacheLife('minutes')
+
+  return fetchFinnCarsForGroup(carGroups.bilbyen)
+}
+
+export async function fetchBruktbilTrondelagCars(): Promise<Car[]> {
+  'use cache'
+  cacheLife('minutes')
+
+  return fetchFinnCarsForGroup(carGroups['bruktbil-trondelag'])
+}
+
+export async function fetchFinnCarsForGroup(
+  group: CarGroupConfig
+): Promise<Car[]> {
+  'use cache'
+  cacheLife('minutes')
+
+  const carsByDealer = await Promise.all(
+    group.dealers.map((dealer) => fetchFinnCarsByOrgId(dealer.orgId))
+  )
+
+  return sortNewestFirst(dedupeCars(carsByDealer.flat()))
+}
+
+export async function fetchFinnCarsByOrgId(orgId: string): Promise<Car[]> {
+  'use cache'
+  cacheLife('minutes')
+
+  const apiKey = process.env.FINN_API_KEY
+
+  if (!apiKey) {
+    throw new Error('FINN_API_KEY must be set in environment')
   }
 
   const res = await fetch(
@@ -25,13 +65,13 @@ export async function fetchFinnCars(): Promise<Car[]> {
   }
 
   const xml = await res.text()
-  return parseEntries(xml)
+  return parseEntries(xml, orgId)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ParsedNode = Record<string, any>
 
-function parseEntries(xml: string): Car[] {
+function parseEntries(xml: string, orgId: string): Car[] {
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: '@_',
@@ -43,10 +83,10 @@ function parseEntries(xml: string): Car[] {
   const result = parser.parse(xml)
   const entries: ParsedNode[] = result?.feed?.entry ?? []
 
-  return entries.map((entry) => mapEntry(entry))
+  return entries.map((entry) => mapEntry(entry, orgId))
 }
 
-function mapEntry(entry: ParsedNode): Car {
+function mapEntry(entry: ParsedNode, orgId: string): Car {
   // Flatten top-level finn:field entries from finn:adata
   const fields = extractFields(entry['finn:adata']?.['finn:field'] ?? [])
 
@@ -75,6 +115,7 @@ function mapEntry(entry: ParsedNode): Car {
   return {
     id,
     title: String(entry.title ?? ''),
+    orgId,
     make: fields.make != null ? String(fields.make) : undefined,
     model: fields.model != null ? String(fields.model) : undefined,
     year: fields.year != null ? Number(fields.year) : undefined,
@@ -108,4 +149,18 @@ function extractFields(
     }
   }
   return result
+}
+
+function dedupeCars(cars: Car[]): Car[] {
+  const carsById = new Map<string, Car>()
+
+  for (const car of cars) {
+    carsById.set(car.id, car)
+  }
+
+  return [...carsById.values()]
+}
+
+function sortNewestFirst(cars: Car[]): Car[] {
+  return [...cars].sort((a, b) => (b.updated ?? '').localeCompare(a.updated ?? ''))
 }

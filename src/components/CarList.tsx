@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import type { Car } from '@/lib/types'
 import CarCard from './CarCard'
@@ -23,7 +24,17 @@ const SORT_LABELS: Record<SortKey, string> = {
   'mileage-desc': 'Km: høy–lav',
 }
 
-export default function CarList({ cars }: { cars: Car[] }) {
+interface CarListProps {
+  cars: Car[]
+  title?: string
+  description?: string
+}
+
+export default function CarList({
+  cars,
+  title = 'Biler til salgs',
+  description,
+}: CarListProps) {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortKey>('newest')
   const [filterMake, setFilterMake] = useState('')
@@ -98,9 +109,25 @@ export default function CarList({ cars }: { cars: Car[] }) {
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <Link
+                href="/"
+                className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+              >
+                Til forsiden
+              </Link>
+              {description && (
+                <p className="mt-1 max-w-3xl text-sm text-gray-600 dark:text-gray-400">
+                  {description}
+                </p>
+              )}
+            </div>
+          </div>
+
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <h1 className="text-xl font-bold text-gray-900 dark:text-white shrink-0">
-              Biler til salgs
+              {title}
               <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
                 ({sorted.length} av {cars.length})
               </span>
