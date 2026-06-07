@@ -3,6 +3,7 @@ import {
   fetchBilbyenCars,
   fetchBruktbilTrondelagCars,
 } from '@/lib/finn-api'
+import { prepareCarouselCars } from '@/lib/car-carousel'
 import { carGroups } from '@/lib/car-groups'
 
 export default async function Page() {
@@ -30,13 +31,13 @@ export default async function Page() {
         title={bilbyen.name}
         description={bilbyen.description}
         href={bilbyen.path}
-        cars={bilbyenCars}
+        cars={prepareCarouselCars(bilbyenCars)}
       />
       <CarCarousel
         title={bruktbilTrondelag.name}
         description={bruktbilTrondelag.description}
         href={bruktbilTrondelag.path}
-        cars={bruktbilTrondelagCars}
+        cars={prepareCarouselCars(bruktbilTrondelagCars)}
       />
     </main>
   )
