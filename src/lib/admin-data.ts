@@ -15,6 +15,7 @@ export interface AdminDealer {
 
 export interface AdminDealerUser {
   userId: string
+  dealerId: string
   email: string
   role: DealerUserRole
 }
@@ -62,6 +63,7 @@ export async function getAdminDealers(): Promise<AdminDealer[]> {
 
     users.push({
       userId: membership.user_id,
+      dealerId: membership.dealer_id,
       email: user?.email ?? 'Ukjent e-post',
       role: membership.role,
     })

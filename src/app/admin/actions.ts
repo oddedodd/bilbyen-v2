@@ -127,6 +127,106 @@ export async function createDealerUser(formData: FormData) {
   redirect('/admin?userCreated=1')
 }
 
+export async function updateDealerUser(formData: FormData) {
+  await requireAdminUser()
+
+  const userId = readFormString(formData, 'userId')
+  const dealerId = readFormString(formData, 'dealerId')
+  const email = readFormString(formData, 'email').toLowerCase()
+  const password = readFormString(formData, 'password')
+  const role = normalizeDealerRole(formData.get('role'))
+
+  if (!userId || !dealerId || !email) {
+    redirect('/admin?error=missing')
+  }
+
+  if (password && password.length < 8) {
+    redirect('/admin?error=password')
+  }
+
+  const supabase = createSupabaseAdminClient()
+  const { data: dealer, error: dealerError } = await supabase
+    .from('dealers')
+    .select('id, name')
+    .eq('id', dealerId)
+    .single()
+
+  if (dealerError || !dealer) {
+    redirect('/admin?error=dealer')
+  }
+
+  const { error: userError } = await supabase.auth.admin.updateUserById(
+    userId,
+    {
+      email,
+      ...(password ? { password } : {}),
+      user_metadata: {
+        dealer_id: dealer.id,
+        dealer_name: dealer.name,
+        role,
+      },
+    }
+  )
+
+  if (userError) {
+    redirect('/admin?error=user')
+  }
+
+  const { error: deleteMembershipsError } = await supabase
+    .from('dealer_users')
+    .delete()
+    .eq('user_id', userId)
+
+  if (deleteMembershipsError) {
+    redirect('/admin?error=membership')
+  }
+
+  const { error: membershipError } = await supabase
+    .from('dealer_users')
+    .insert({
+      dealer_id: dealerId,
+      user_id: userId,
+      role,
+    })
+
+  if (membershipError) {
+    redirect('/admin?error=membership')
+  }
+
+  redirect('/admin?userUpdated=1')
+}
+
+export async function deleteDealerUser(formData: FormData) {
+  const adminUser = await requireAdminUser()
+  const userId = readFormString(formData, 'userId')
+
+  if (!userId) {
+    redirect('/admin?error=missing')
+  }
+
+  if (userId === adminUser.id) {
+    redirect('/admin?error=self-delete')
+  }
+
+  const supabase = createSupabaseAdminClient()
+  const { error: membershipError } = await supabase
+    .from('dealer_users')
+    .delete()
+    .eq('user_id', userId)
+
+  if (membershipError) {
+    redirect('/admin?error=membership')
+  }
+
+  const { error: userError } = await supabase.auth.admin.deleteUser(userId)
+
+  if (userError) {
+    redirect('/admin?error=user')
+  }
+
+  redirect('/admin?userDeleted=1')
+}
+
 export async function updateDealerGroup(formData: FormData) {
   await requireAdminUser()
 
