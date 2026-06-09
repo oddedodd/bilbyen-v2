@@ -1,8 +1,13 @@
+import { cacheLife } from 'next/cache'
+import { fetchSupabaseRest } from './supabase-server'
+
 export type CarGroupSlug = 'bilbyen' | 'bruktbil-trondelag'
 
 export interface DealerConfig {
+  id: string
   name: string
   orgId: string
+  groupSlug: CarGroupSlug
 }
 
 export interface CarGroupConfig {
@@ -11,7 +16,13 @@ export interface CarGroupConfig {
   shortName: string
   description: string
   path: `/${CarGroupSlug}`
-  dealers: DealerConfig[]
+}
+
+interface DealerRow {
+  id: string
+  name: string
+  org_id: string
+  group_slug: CarGroupSlug
 }
 
 export const carGroups = {
@@ -21,11 +32,6 @@ export const carGroups = {
     shortName: 'Bilbyen',
     description: 'Bruktbiler fra forhandlerne i Bilbyen Namsos.',
     path: '/bilbyen',
-    dealers: [
-      { name: 'Bilsenteret', orgId: '903902014' },
-      { name: 'Høylandet Auto', orgId: '1401679938' },
-      { name: 'Otto Moe', orgId: '2068682021' },
-    ],
   },
   'bruktbil-trondelag': {
     slug: 'bruktbil-trondelag',
@@ -33,12 +39,41 @@ export const carGroups = {
     shortName: 'Bruktbil Trøndelag',
     description: 'Bruktbiler fra utvalgte forhandlere i Trøndelag.',
     path: '/bruktbil-trondelag',
-    dealers: [
-      { name: 'Sannan Bil', orgId: '2038393302' },
-      { name: 'Steinkjer Bil', orgId: '1784917547' },
-      { name: 'Slatlem Verdal', orgId: '756031412' },
-    ],
   },
 } satisfies Record<CarGroupSlug, CarGroupConfig>
 
 export const carGroupList = Object.values(carGroups)
+
+export function isCarGroupSlug(value: string): value is CarGroupSlug {
+  return value === 'bilbyen' || value === 'bruktbil-trondelag'
+}
+
+export function getCarGroupLabel(groupSlug: CarGroupSlug): string {
+  return carGroups[groupSlug].name
+}
+
+export function normalizeCarGroupSlug(
+  value: FormDataEntryValue | null
+): CarGroupSlug {
+  return typeof value === 'string' && isCarGroupSlug(value)
+    ? value
+    : 'bilbyen'
+}
+
+export async function getDealersForCarGroup(
+  groupSlug: CarGroupSlug
+): Promise<DealerConfig[]> {
+  'use cache'
+  cacheLife('minutes')
+
+  const dealers = await fetchSupabaseRest<DealerRow[]>({
+    path: `/dealers?select=id,name,org_id,group_slug&group_slug=eq.${groupSlug}&order=name.asc`,
+  })
+
+  return dealers.map((dealer) => ({
+    id: dealer.id,
+    name: dealer.name,
+    orgId: dealer.org_id,
+    groupSlug: dealer.group_slug,
+  }))
+}
