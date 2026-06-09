@@ -1,8 +1,14 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { requireAdminUser } from '@/lib/admin-auth'
+import { carGroupList, getCarGroupLabel } from '@/lib/car-groups'
 import { getAdminDealers } from '@/lib/admin-data'
-import { createDealerUser, logoutAdmin } from './actions'
+import {
+  createDealer,
+  createDealerUser,
+  logoutAdmin,
+  updateDealerGroup,
+} from './actions'
 
 interface AdminPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
@@ -41,7 +47,12 @@ async function AdminDashboard({ searchParams }: AdminPageProps) {
     searchParams,
   ])
   const error = getSearchParam(resolvedSearchParams, 'error')
-  const created = getSearchParam(resolvedSearchParams, 'created') === '1'
+  const dealerCreated =
+    getSearchParam(resolvedSearchParams, 'dealerCreated') === '1'
+  const userCreated =
+    getSearchParam(resolvedSearchParams, 'userCreated') === '1'
+  const groupUpdated =
+    getSearchParam(resolvedSearchParams, 'groupUpdated') === '1'
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -74,85 +85,144 @@ async function AdminDashboard({ searchParams }: AdminPageProps) {
       </header>
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[22rem_1fr]">
-        <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-950">
-            Ny forhandlerbruker
-          </h2>
+        <div className="flex flex-col gap-6">
+          <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-gray-950">
+              Ny forhandler
+            </h2>
 
-          <form action={createDealerUser} className="mt-5 flex flex-col gap-4">
-            {created && (
-              <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                Brukeren ble opprettet.
-              </p>
-            )}
-            {error && ERROR_MESSAGES[error] && (
-              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {ERROR_MESSAGES[error]}
-              </p>
-            )}
+            <form action={createDealer} className="mt-5 flex flex-col gap-4">
+              {dealerCreated && (
+                <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                  Forhandleren ble lagret.
+                </p>
+              )}
+              {groupUpdated && (
+                <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                  Gruppen ble oppdatert.
+                </p>
+              )}
+              {error && ERROR_MESSAGES[error] && (
+                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {ERROR_MESSAGES[error]}
+                </p>
+              )}
 
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
-              Firma
-              <input
-                name="dealerName"
-                required
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
-              />
-            </label>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
+                Firma
+                <input
+                  name="dealerName"
+                  required
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                />
+              </label>
 
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
-              FINN orgId
-              <input
-                name="orgId"
-                inputMode="numeric"
-                required
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
-              />
-            </label>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
+                FINN orgId
+                <input
+                  name="orgId"
+                  inputMode="numeric"
+                  required
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                />
+              </label>
 
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
-              E-post
-              <input
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
-              />
-            </label>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
+                Gruppe
+                <select
+                  name="groupSlug"
+                  defaultValue="bilbyen"
+                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                >
+                  {carGroupList.map((group) => (
+                    <option key={group.slug} value={group.slug}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
-              Midlertidig passord
-              <input
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                required
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
-              Rolle
-              <select
-                name="role"
-                defaultValue="viewer"
-                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+              <button
+                type="submit"
+                className="rounded-md bg-gray-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
               >
-                <option value="viewer">Viewer</option>
-                <option value="owner">Owner</option>
-              </select>
-            </label>
+                Lagre forhandler
+              </button>
+            </form>
+          </section>
 
-            <button
-              type="submit"
-              className="rounded-md bg-gray-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
-            >
-              Opprett bruker
-            </button>
-          </form>
-        </section>
+          <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-gray-950">
+              Ny forhandlerbruker
+            </h2>
+
+            <form action={createDealerUser} className="mt-5 flex flex-col gap-4">
+              {userCreated && (
+                <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                  Brukeren ble opprettet.
+                </p>
+              )}
+
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
+                Forhandler
+                <select
+                  name="dealerId"
+                  required
+                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                >
+                  <option value="">Velg forhandler</option>
+                  {dealers.map((dealer) => (
+                    <option key={dealer.id} value={dealer.id}>
+                      {dealer.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
+                E-post
+                <input
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                />
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
+                Midlertidig passord
+                <input
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                />
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
+                Rolle
+                <select
+                  name="role"
+                  defaultValue="viewer"
+                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                >
+                  <option value="viewer">Viewer</option>
+                  <option value="owner">Owner</option>
+                </select>
+              </label>
+
+              <button
+                type="submit"
+                className="rounded-md bg-gray-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
+              >
+                Opprett bruker
+              </button>
+            </form>
+          </section>
+        </div>
 
         <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-200 px-5 py-4">
@@ -167,6 +237,7 @@ async function AdminDashboard({ searchParams }: AdminPageProps) {
                 <tr>
                   <th className="px-5 py-3">Firma</th>
                   <th className="px-5 py-3">OrgId</th>
+                  <th className="px-5 py-3">Gruppe</th>
                   <th className="px-5 py-3">Brukere</th>
                 </tr>
               </thead>
@@ -183,6 +254,36 @@ async function AdminDashboard({ searchParams }: AdminPageProps) {
                     </td>
                     <td className="px-5 py-4 align-top font-mono text-xs text-gray-700">
                       {dealer.orgId}
+                    </td>
+                    <td className="px-5 py-4 align-top">
+                      <form
+                        action={updateDealerGroup}
+                        className="flex min-w-52 items-center gap-2"
+                      >
+                        <input
+                          type="hidden"
+                          name="dealerId"
+                          value={dealer.id}
+                        />
+                        <select
+                          name="groupSlug"
+                          defaultValue={dealer.groupSlug}
+                          aria-label={`Gruppe for ${dealer.name}`}
+                          className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                        >
+                          {carGroupList.map((group) => (
+                            <option key={group.slug} value={group.slug}>
+                              {getCarGroupLabel(group.slug)}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="submit"
+                          className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs font-semibold text-gray-800 shadow-sm transition hover:bg-gray-50"
+                        >
+                          Lagre
+                        </button>
+                      </form>
                     </td>
                     <td className="px-5 py-4 align-top">
                       {dealer.users.length === 0 ? (

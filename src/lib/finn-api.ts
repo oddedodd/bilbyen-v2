@@ -1,6 +1,6 @@
 import { XMLParser } from 'fast-xml-parser'
 import { cacheLife } from 'next/cache'
-import { carGroups, type CarGroupConfig } from './car-groups'
+import { getDealersForCarGroup, type CarGroupSlug } from './car-groups'
 import type { Car } from './types'
 
 const FINN_API_BASE = 'https://cache.api.finn.no'
@@ -22,24 +22,25 @@ export async function fetchBilbyenCars(): Promise<Car[]> {
   'use cache'
   cacheLife('minutes')
 
-  return fetchFinnCarsForGroup(carGroups.bilbyen)
+  return fetchFinnCarsForGroup('bilbyen')
 }
 
 export async function fetchBruktbilTrondelagCars(): Promise<Car[]> {
   'use cache'
   cacheLife('minutes')
 
-  return fetchFinnCarsForGroup(carGroups['bruktbil-trondelag'])
+  return fetchFinnCarsForGroup('bruktbil-trondelag')
 }
 
 export async function fetchFinnCarsForGroup(
-  group: CarGroupConfig
+  groupSlug: CarGroupSlug
 ): Promise<Car[]> {
   'use cache'
   cacheLife('minutes')
 
+  const dealers = await getDealersForCarGroup(groupSlug)
   const carsByDealer = await Promise.all(
-    group.dealers.map((dealer) => fetchFinnCarsByOrgId(dealer.orgId))
+    dealers.map((dealer) => fetchFinnCarsByOrgId(dealer.orgId))
   )
 
   return sortNewestFirst(dedupeCars(carsByDealer.flat()))

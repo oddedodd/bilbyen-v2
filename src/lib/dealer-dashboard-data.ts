@@ -1,5 +1,7 @@
 import { createSupabaseServerClient } from './supabase-auth'
 
+export type DashboardPeriodDays = 7 | 30 | 90 | 365
+
 export interface DealerDashboardDealer {
   id: string
   name: string
@@ -9,6 +11,7 @@ export interface DealerDashboardDealer {
 }
 
 export interface DealerDashboardStats {
+  periodDays: DashboardPeriodDays
   dealers: DealerDashboardDealer[]
   selectedDealer: DealerDashboardDealer | null
   totals: {
@@ -62,7 +65,8 @@ interface StatRow {
 }
 
 export async function getDealerDashboardStats(
-  dealerId?: string
+  dealerId?: string,
+  periodDays: DashboardPeriodDays = 30
 ): Promise<DealerDashboardStats> {
   const supabase = await createSupabaseServerClient()
   const { data: memberships, error: membershipsError } = await supabase
@@ -89,6 +93,7 @@ export async function getDealerDashboardStats(
 
   if (!selectedDealer) {
     return {
+      periodDays,
       dealers,
       selectedDealer: null,
       totals: {
@@ -102,7 +107,7 @@ export async function getDealerDashboardStats(
     }
   }
 
-  const fromDate = getDateDaysAgo(29)
+  const fromDate = getDateDaysAgo(periodDays - 1)
   const { data: stats, error: statsError } = await supabase
     .from('dealer_ad_daily_stats')
     .select(
@@ -119,14 +124,16 @@ export async function getDealerDashboardStats(
   return buildDashboardStats(
     dealers,
     selectedDealer,
-    (stats ?? []) as unknown as StatRow[]
+    (stats ?? []) as unknown as StatRow[],
+    periodDays
   )
 }
 
 function buildDashboardStats(
   dealers: DealerDashboardDealer[],
   selectedDealer: DealerDashboardDealer,
-  stats: StatRow[]
+  stats: StatRow[],
+  periodDays: DashboardPeriodDays
 ): DealerDashboardStats {
   const dailyByDate = new Map<string, { impressions: number; clicks: number }>()
   const adsById = new Map<
@@ -164,16 +171,18 @@ function buildDashboardStats(
     adsById.set(row.finn_ad_id, ad)
   }
 
-  const dailyStats = getLast30Dates().map((date) => {
-    const daily = dailyByDate.get(date) ?? { impressions: 0, clicks: 0 }
+  const dailyStats = getLastDates(periodDays)
+    .map((date) => {
+      const daily = dailyByDate.get(date) ?? { impressions: 0, clicks: 0 }
 
-    return {
-      date,
-      impressions: daily.impressions,
-      clicks: daily.clicks,
-      clickRate: calculateClickRate(daily.clicks, daily.impressions),
-    }
-  })
+      return {
+        date,
+        impressions: daily.impressions,
+        clicks: daily.clicks,
+        clickRate: calculateClickRate(daily.clicks, daily.impressions),
+      }
+    })
+    .reverse()
 
   const adStats = [...adsById.entries()]
     .map(([finnAdId, ad]) => ({
@@ -191,6 +200,7 @@ function buildDashboardStats(
   const clicks = dailyStats.reduce((sum, day) => sum + day.clicks, 0)
 
   return {
+    periodDays,
     dealers,
     selectedDealer,
     totals: {
@@ -208,8 +218,16 @@ function calculateClickRate(clicks: number, impressions: number): number {
   return impressions > 0 ? clicks / impressions : 0
 }
 
-function getLast30Dates(): string[] {
-  return Array.from({ length: 30 }, (_, index) => getDateDaysAgo(29 - index))
+export function normalizeDashboardPeriod(value?: string): DashboardPeriodDays {
+  if (value === '7' || value === '30' || value === '90' || value === '365') {
+    return Number(value) as DashboardPeriodDays
+  }
+
+  return 30
+}
+
+function getLastDates(days: DashboardPeriodDays): string[] {
+  return Array.from({ length: days }, (_, index) => getDateDaysAgo(days - 1 - index))
 }
 
 function getDateDaysAgo(daysAgo: number): string {

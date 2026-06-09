@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { requireDealerUser } from '@/lib/dealer-auth'
 import {
+  type DashboardPeriodDays,
   getDealerDashboardStats,
+  normalizeDashboardPeriod,
   type AdStats,
   type DailyStats,
 } from '@/lib/dealer-dashboard-data'
@@ -11,6 +13,16 @@ import { logoutDealer } from './actions'
 interface DealerDashboardPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
 }
+
+const DASHBOARD_PERIODS: {
+  days: DashboardPeriodDays
+  label: string
+}[] = [
+  { days: 7, label: '7 d' },
+  { days: 30, label: '30 d' },
+  { days: 90, label: '90 d' },
+  { days: 365, label: '1 år' },
+]
 
 export default function DealerDashboardPage({
   searchParams,
@@ -26,7 +38,7 @@ function DashboardLoading() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 py-6 text-sm text-gray-500">
-        Laster …
+        Laster ...
       </div>
     </main>
   )
@@ -38,7 +50,10 @@ async function DealerDashboard({
   const user = await requireDealerUser()
   const resolvedSearchParams = await searchParams
   const dealerId = getSearchParam(resolvedSearchParams, 'dealer')
-  const stats = await getDealerDashboardStats(dealerId)
+  const periodDays = normalizeDashboardPeriod(
+    getSearchParam(resolvedSearchParams, 'period')
+  )
+  const stats = await getDealerDashboardStats(dealerId, periodDays)
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -77,9 +92,7 @@ async function DealerDashboard({
           <>
             <section className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">
-                  Siste 30 dager
-                </p>
+                <p className="text-sm font-medium text-gray-500">Oversikt</p>
                 <h2 className="mt-1 text-xl font-bold text-gray-950">
                   {stats.selectedDealer.name}
                 </h2>
@@ -89,7 +102,12 @@ async function DealerDashboard({
               </div>
 
               {stats.dealers.length > 1 && (
-                <form>
+                <form className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <input
+                    type="hidden"
+                    name="period"
+                    value={stats.periodDays}
+                  />
                   <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
                     Forhandler
                     <select
@@ -106,7 +124,7 @@ async function DealerDashboard({
                   </label>
                   <button
                     type="submit"
-                    className="mt-2 rounded-md bg-gray-950 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
+                    className="rounded-md bg-gray-950 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
                   >
                     Vis
                   </button>
@@ -134,10 +152,17 @@ async function DealerDashboard({
             </section>
 
             {stats.totals.impressions === 0 && stats.totals.clicks === 0 ? (
-              <EmptyStatsState />
+              <EmptyStatsState
+                periodDays={stats.periodDays}
+                dealerId={stats.selectedDealer.id}
+              />
             ) : (
               <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
-                <DailyStatsTable dailyStats={stats.dailyStats} />
+                <DailyStatsTable
+                  dailyStats={stats.dailyStats}
+                  periodDays={stats.periodDays}
+                  dealerId={stats.selectedDealer.id}
+                />
                 <AdStatsTable adStats={stats.adStats} />
               </div>
             )}
@@ -157,14 +182,26 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   )
 }
 
-function DailyStatsTable({ dailyStats }: { dailyStats: DailyStats[] }) {
+function DailyStatsTable({
+  dailyStats,
+  periodDays,
+  dealerId,
+}: {
+  dailyStats: DailyStats[]
+  periodDays: DashboardPeriodDays
+  dealerId: string
+}) {
   return (
     <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div className="border-b border-gray-200 px-5 py-4">
-        <h2 className="text-base font-semibold text-gray-950">
-          Daglig trend
-        </h2>
+      <div className="flex items-center justify-between gap-4 border-b border-gray-200 px-5 py-4">
+        <div>
+          <h2 className="text-base font-semibold text-gray-950">
+            Trender
+          </h2>
+        </div>
+        <PeriodLinks dealerId={dealerId} periodDays={periodDays} />
       </div>
+
       <div className="max-h-[34rem] overflow-auto">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -192,6 +229,40 @@ function DailyStatsTable({ dailyStats }: { dailyStats: DailyStats[] }) {
         </table>
       </div>
     </section>
+  )
+}
+
+function PeriodLinks({
+  dealerId,
+  periodDays,
+}: {
+  dealerId: string
+  periodDays: DashboardPeriodDays
+}) {
+  return (
+    <nav
+      aria-label="Velg trendperiode"
+      className="flex shrink-0 items-center gap-3 whitespace-nowrap text-xs font-semibold"
+    >
+      {DASHBOARD_PERIODS.map((period) => {
+        const isActive = period.days === periodDays
+
+        return (
+          <Link
+            key={period.days}
+            href={getDashboardHref(dealerId, period.days)}
+            aria-current={isActive ? 'page' : undefined}
+            className={
+              isActive
+                ? 'text-gray-950 underline decoration-2 underline-offset-4'
+                : 'text-gray-500 transition hover:text-gray-950 hover:underline hover:underline-offset-4'
+            }
+          >
+            {period.label}
+          </Link>
+        )
+      })}
+    </nav>
   )
 }
 
@@ -261,10 +332,21 @@ function NoAccessState() {
   )
 }
 
-function EmptyStatsState() {
+function EmptyStatsState({
+  periodDays,
+  dealerId,
+}: {
+  periodDays: DashboardPeriodDays
+  dealerId: string
+}) {
   return (
     <section className="rounded-lg border border-dashed border-gray-300 bg-white px-5 py-12 text-center text-sm text-gray-500">
-      Ingen statistikk registrert for de siste 30 dagene.
+      <p>
+        Ingen statistikk registrert for {getPeriodLabel(periodDays).toLowerCase()}.
+      </p>
+      <div className="mt-4 flex justify-center">
+        <PeriodLinks dealerId={dealerId} periodDays={periodDays} />
+      </div>
     </section>
   )
 }
@@ -295,4 +377,27 @@ function formatDate(value: string): string {
     month: '2-digit',
     year: 'numeric',
   }).format(new Date(value))
+}
+
+function getPeriodLabel(periodDays: DashboardPeriodDays): string {
+  const labels: Record<DashboardPeriodDays, string> = {
+    7: 'Siste 7 dager',
+    30: 'Siste 30 dager',
+    90: 'Siste 90 dager',
+    365: 'Siste år',
+  }
+
+  return labels[periodDays]
+}
+
+function getDashboardHref(
+  dealerId: string,
+  periodDays: DashboardPeriodDays
+): string {
+  const params = new URLSearchParams({
+    dealer: dealerId,
+    period: String(periodDays),
+  })
+
+  return `/forhandler?${params.toString()}`
 }

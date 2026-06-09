@@ -1,4 +1,5 @@
 import type { User } from '@supabase/supabase-js'
+import type { CarGroupSlug } from './car-groups'
 import { createSupabaseAdminClient } from './supabase-server'
 
 export type DealerUserRole = 'owner' | 'viewer'
@@ -8,6 +9,7 @@ export interface AdminDealer {
   orgId: string
   name: string
   slug: string
+  groupSlug: CarGroupSlug
   users: AdminDealerUser[]
 }
 
@@ -22,6 +24,7 @@ interface DealerRow {
   org_id: string
   name: string
   slug: string
+  group_slug: CarGroupSlug
 }
 
 interface DealerUserRow {
@@ -35,7 +38,10 @@ export async function getAdminDealers(): Promise<AdminDealer[]> {
 
   const [{ data: dealers, error: dealersError }, { data: dealerUsers, error: dealerUsersError }] =
     await Promise.all([
-      supabase.from('dealers').select('id, org_id, name, slug').order('name'),
+      supabase
+        .from('dealers')
+        .select('id, org_id, name, slug, group_slug')
+        .order('name'),
       supabase.from('dealer_users').select('dealer_id, user_id, role'),
     ])
 
@@ -67,6 +73,7 @@ export async function getAdminDealers(): Promise<AdminDealer[]> {
     orgId: dealer.org_id,
     name: dealer.name,
     slug: dealer.slug,
+    groupSlug: dealer.group_slug,
     users: membershipsByDealer.get(dealer.id) ?? [],
   }))
 }
