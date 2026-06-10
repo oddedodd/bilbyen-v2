@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bilbyen v2
 
-## Getting Started
+Next.js-app for visning av bruktbiler fra FINN API, med offentlige
+landingssider, forhandlerdashboard og enkel admin for dealer-tilganger.
 
-First, run the development server:
+## Utvikling
+
+Sjekk først om dev-server allerede kjører:
+
+```bash
+lsof -i :3000
+lsof -i :3001
+```
+
+Start kun ny server hvis ingen eksisterer:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Validering
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Bruk disse som standard sjekkpunkter:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+npx tsc --noEmit
+```
 
-## Learn More
+Ikke bruk `npm run build` som vanlig validering.
 
-To learn more about Next.js, take a look at the following resources:
+## Sikkerhet
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `.env*` skal være lokale filer og er ignorert av git.
+- `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL` og `FINN_API_KEY` skal bare
+  brukes server-side.
+- Supabase-klientroller skal ha minst mulige grants. RLS er siste
+  forsvarslinje, ikke eneste.
+- Offentlig analytics-endepunkt skal validere origin, størrelse, rate og
+  dealer/group før det kaller Supabase RPC.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Se `supabase/README.md` for database- og migrasjonsrutiner.

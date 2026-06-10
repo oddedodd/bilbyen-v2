@@ -11,6 +11,7 @@ interface DealerLoginPageProps {
 const ERROR_MESSAGES: Record<string, string> = {
   invalid: 'Ugyldig e-post eller passord.',
   missing: 'E-post og passord må fylles ut.',
+  unauthorized: 'Denne brukeren har ikke forhandlertilgang.',
 }
 
 export default function DealerLoginPage({

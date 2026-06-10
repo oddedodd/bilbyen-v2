@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireAdminUser, isAdminEmail } from '@/lib/admin-auth'
 import { normalizeCarGroupSlug } from '@/lib/car-groups'
@@ -9,6 +10,11 @@ import {
 } from '@/lib/admin-data'
 import { createSupabaseServerClient } from '@/lib/supabase-auth'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
+
+export interface AdminActionState {
+  ok: boolean | null
+  message: string
+}
 
 export async function loginAdmin(formData: FormData) {
   const email = readFormString(formData, 'email').toLowerCase()
@@ -30,7 +36,7 @@ export async function loginAdmin(formData: FormData) {
 
   if (!isAdminEmail(email)) {
     await supabase.auth.signOut()
-    redirect('/admin/login?error=unauthorized')
+    redirect('/admin/login?error=invalid')
   }
 
   redirect('/admin')
@@ -42,7 +48,10 @@ export async function logoutAdmin() {
   redirect('/admin/login')
 }
 
-export async function createDealer(formData: FormData) {
+export async function createDealer(
+  _state: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
   await requireAdminUser()
 
   const dealerName = readFormString(formData, 'dealerName')
@@ -50,7 +59,7 @@ export async function createDealer(formData: FormData) {
   const groupSlug = normalizeCarGroupSlug(formData.get('groupSlug'))
 
   if (!dealerName || !orgId) {
-    redirect('/admin?error=missing')
+    return actionError('Alle feltene må fylles ut.')
   }
 
   const { data: dealer, error: dealerError } = await upsertDealer({
@@ -60,13 +69,18 @@ export async function createDealer(formData: FormData) {
   })
 
   if (dealerError || !dealer) {
-    redirect('/admin?error=dealer')
+    return actionError('Kunne ikke lagre firma.')
   }
 
-  redirect('/admin?dealerCreated=1')
+  revalidatePath('/admin')
+
+  return actionSuccess('Forhandleren ble lagret.')
 }
 
-export async function createDealerUser(formData: FormData) {
+export async function createDealerUser(
+  _state: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
   await requireAdminUser()
 
   const dealerId = readFormString(formData, 'dealerId')
@@ -75,11 +89,11 @@ export async function createDealerUser(formData: FormData) {
   const role = normalizeDealerRole(formData.get('role'))
 
   if (!dealerId || !email || !password) {
-    redirect('/admin?error=missing')
+    return actionError('Alle feltene må fylles ut.')
   }
 
   if (password.length < 8) {
-    redirect('/admin?error=password')
+    return actionError('Passord må være minst 8 tegn.')
   }
 
   const supabase = createSupabaseAdminClient()
@@ -90,7 +104,7 @@ export async function createDealerUser(formData: FormData) {
     .single()
 
   if (dealerError || !dealer) {
-    redirect('/admin?error=dealer')
+    return actionError('Kunne ikke finne forhandleren.')
   }
 
   const { data: authUser, error: authError } =
@@ -106,7 +120,7 @@ export async function createDealerUser(formData: FormData) {
     })
 
   if (authError || !authUser.user) {
-    redirect('/admin?error=user-exists')
+    return actionError('E-postadressen finnes allerede i Supabase Auth.')
   }
 
   const { error: membershipError } = await supabase
@@ -121,13 +135,18 @@ export async function createDealerUser(formData: FormData) {
     )
 
   if (membershipError) {
-    redirect('/admin?error=membership')
+    return actionError('Brukeren ble opprettet, men kunne ikke kobles til firma.')
   }
 
-  redirect('/admin?userCreated=1')
+  revalidatePath('/admin')
+
+  return actionSuccess('Brukeren ble opprettet.')
 }
 
-export async function updateDealerUser(formData: FormData) {
+export async function updateDealerUser(
+  _state: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
   await requireAdminUser()
 
   const userId = readFormString(formData, 'userId')
@@ -137,11 +156,11 @@ export async function updateDealerUser(formData: FormData) {
   const role = normalizeDealerRole(formData.get('role'))
 
   if (!userId || !dealerId || !email) {
-    redirect('/admin?error=missing')
+    return actionError('Alle feltene må fylles ut.')
   }
 
   if (password && password.length < 8) {
-    redirect('/admin?error=password')
+    return actionError('Passord må være minst 8 tegn.')
   }
 
   const supabase = createSupabaseAdminClient()
@@ -152,7 +171,7 @@ export async function updateDealerUser(formData: FormData) {
     .single()
 
   if (dealerError || !dealer) {
-    redirect('/admin?error=dealer')
+    return actionError('Kunne ikke finne forhandleren.')
   }
 
   const { error: userError } = await supabase.auth.admin.updateUserById(
@@ -169,7 +188,7 @@ export async function updateDealerUser(formData: FormData) {
   )
 
   if (userError) {
-    redirect('/admin?error=user')
+    return actionError('Kunne ikke lagre brukeren.')
   }
 
   const { error: deleteMembershipsError } = await supabase
@@ -178,7 +197,7 @@ export async function updateDealerUser(formData: FormData) {
     .eq('user_id', userId)
 
   if (deleteMembershipsError) {
-    redirect('/admin?error=membership')
+    return actionError('Kunne ikke oppdatere forhandlertilknytningen.')
   }
 
   const { error: membershipError } = await supabase
@@ -190,22 +209,27 @@ export async function updateDealerUser(formData: FormData) {
     })
 
   if (membershipError) {
-    redirect('/admin?error=membership')
+    return actionError('Kunne ikke oppdatere forhandlertilknytningen.')
   }
 
-  redirect('/admin?userUpdated=1')
+  revalidatePath('/admin')
+
+  return actionSuccess('Brukeren ble oppdatert.')
 }
 
-export async function deleteDealerUser(formData: FormData) {
+export async function deleteDealerUser(
+  _state: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
   const adminUser = await requireAdminUser()
   const userId = readFormString(formData, 'userId')
 
   if (!userId) {
-    redirect('/admin?error=missing')
+    return actionError('Mangler bruker som skal slettes.')
   }
 
   if (userId === adminUser.id) {
-    redirect('/admin?error=self-delete')
+    return actionError('Du kan ikke slette din egen adminbruker.')
   }
 
   const supabase = createSupabaseAdminClient()
@@ -215,26 +239,31 @@ export async function deleteDealerUser(formData: FormData) {
     .eq('user_id', userId)
 
   if (membershipError) {
-    redirect('/admin?error=membership')
+    return actionError('Kunne ikke fjerne forhandlertilknytningen.')
   }
 
   const { error: userError } = await supabase.auth.admin.deleteUser(userId)
 
   if (userError) {
-    redirect('/admin?error=user')
+    return actionError('Kunne ikke slette brukeren.')
   }
 
-  redirect('/admin?userDeleted=1')
+  revalidatePath('/admin')
+
+  return actionSuccess('Brukeren ble slettet.')
 }
 
-export async function updateDealerGroup(formData: FormData) {
+export async function updateDealerGroup(
+  _state: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
   await requireAdminUser()
 
   const dealerId = readFormString(formData, 'dealerId')
   const groupSlug = normalizeCarGroupSlug(formData.get('groupSlug'))
 
   if (!dealerId) {
-    redirect('/admin?error=missing')
+    return actionError('Mangler forhandler.')
   }
 
   const supabase = createSupabaseAdminClient()
@@ -244,10 +273,12 @@ export async function updateDealerGroup(formData: FormData) {
     .eq('id', dealerId)
 
   if (error) {
-    redirect('/admin?error=dealer')
+    return actionError('Kunne ikke lagre firma.')
   }
 
-  redirect('/admin?groupUpdated=1')
+  revalidatePath('/admin')
+
+  return actionSuccess('Gruppen ble oppdatert.')
 }
 
 async function upsertDealer({
@@ -310,4 +341,12 @@ function readFormString(formData: FormData, field: string): string {
   const value = formData.get(field)
 
   return typeof value === 'string' ? value.trim() : ''
+}
+
+function actionSuccess(message: string): AdminActionState {
+  return { ok: true, message }
+}
+
+function actionError(message: string): AdminActionState {
+  return { ok: false, message }
 }
