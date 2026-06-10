@@ -12,6 +12,10 @@ export async function requireDealerUser(): Promise<User> {
     redirect('/forhandler/login')
   }
 
+  if (!(await userHasDealerMembership(user.id))) {
+    redirect('/forhandler/login?error=unauthorized')
+  }
+
   return user
 }
 
@@ -21,5 +25,23 @@ export async function getCurrentDealerUser(): Promise<User | null> {
     data: { user },
   } = await supabase.auth.getUser()
 
+  if (!user || !(await userHasDealerMembership(user.id))) {
+    return null
+  }
+
   return user
+}
+
+export async function userHasDealerMembership(userId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient()
+  const { count, error } = await supabase
+    .from('dealer_users')
+    .select('dealer_id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+
+  if (error) {
+    throw error
+  }
+
+  return (count ?? 0) > 0
 }

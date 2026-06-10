@@ -36,7 +36,7 @@ export async function loginAdmin(formData: FormData) {
 
   if (!isAdminEmail(email)) {
     await supabase.auth.signOut()
-    redirect('/admin/login?error=unauthorized')
+    redirect('/admin/login?error=invalid')
   }
 
   redirect('/admin')
