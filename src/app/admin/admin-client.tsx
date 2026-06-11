@@ -108,23 +108,32 @@ function AdminAnalyticsSection({
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         <MetricCard
+          description="Antall ganger biler er registrert vist i karusellene."
           label="Visninger"
           value={formatNumber(totals.impressions)}
         />
-        <MetricCard label="Klikk" value={formatNumber(totals.clicks)} />
         <MetricCard
+          description="Antall klikk videre til FINN-annonsene."
+          label="Klikk"
+          value={formatNumber(totals.clicks)}
+        />
+        <MetricCard
+          description="Andel visninger som endte med klikk."
           label="Klikkrate"
           value={formatPercent(totals.clickRate)}
         />
         <MetricCard
+          description="Unike besøksøkter registrert i perioden."
           label="Sesjoner"
           value={formatNumber(totals.uniqueSessions)}
         />
         <MetricCard
+          description="Annonser som har hatt visninger eller klikk."
           label="Aktive annonser"
           value={formatNumber(totals.activeAds)}
         />
         <MetricCard
+          description="Forhandlere med registrert trafikk i perioden."
           label="Aktive forhandlere"
           value={formatNumber(totals.activeDealers)}
         />
@@ -225,13 +234,24 @@ function PeriodLinks({
   )
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MetricCard({
+  description,
+  label,
+  value,
+}: {
+  description: string
+  label: string
+  value: string
+}) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="flex min-h-36 flex-col rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
         {label}
       </p>
       <p className="mt-2 text-xl font-bold text-gray-950">{value}</p>
+      <p className="mt-3 text-xs leading-snug text-gray-500">
+        {description}
+      </p>
     </div>
   )
 }
