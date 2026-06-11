@@ -1,15 +1,24 @@
-import Link from 'next/link'
 import { Suspense } from 'react'
 import { requireAdminUser } from '@/lib/admin-auth'
 import { carGroupList } from '@/lib/car-groups'
-import { getAdminDealers } from '@/lib/admin-data'
-import { AdminControls } from './admin-client'
-import { logoutAdmin } from './actions'
+import {
+  getAdminAnalyticsOverview,
+  normalizeAdminAnalyticsGroup,
+  normalizeAdminAnalyticsPeriod,
+  normalizeAdminAnalyticsSort,
+  normalizeAdminAnalyticsSortDirection,
+} from '@/lib/admin-data'
+import { AdminAnalyticsView } from './admin-client'
+import { AdminShell } from './admin-shell'
 
-export default function AdminPage() {
+interface AdminPageProps {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
+}
+
+export default function AdminPage({ searchParams }: AdminPageProps) {
   return (
     <Suspense fallback={<AdminLoading />}>
-      <AdminDashboard />
+      <AdminDashboard searchParams={searchParams} />
     </Suspense>
   )
 }
@@ -24,10 +33,29 @@ function AdminLoading() {
   )
 }
 
-async function AdminDashboard() {
-  const [adminUser, dealers] = await Promise.all([
+async function AdminDashboard({ searchParams }: AdminPageProps) {
+  const resolvedSearchParams = await searchParams
+  const group = normalizeAdminAnalyticsGroup(
+    getSearchParam(resolvedSearchParams, 'group')
+  )
+  const periodDays = normalizeAdminAnalyticsPeriod(
+    getSearchParam(resolvedSearchParams, 'period')
+  )
+  const sort = normalizeAdminAnalyticsSort(
+    getSearchParam(resolvedSearchParams, 'sort')
+  )
+  const direction = normalizeAdminAnalyticsSortDirection(
+    getSearchParam(resolvedSearchParams, 'direction')
+  )
+
+  const [adminUser, analyticsOverview] = await Promise.all([
     requireAdminUser(),
-    getAdminDealers(),
+    getAdminAnalyticsOverview({
+      group,
+      periodDays,
+      sort,
+      direction,
+    }),
   ])
   const carGroups = carGroupList.map((group) => ({
     slug: group.slug,
@@ -35,38 +63,20 @@ async function AdminDashboard() {
   }))
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <Link
-              href="/"
-              className="text-sm font-medium text-sky-700 hover:text-sky-900 hover:underline"
-            >
-              Til forsiden
-            </Link>
-            <h1 className="mt-2 text-2xl font-bold text-gray-950">
-              Admin
-            </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {adminUser.email}
-            </p>
-          </div>
-
-          <form action={logoutAdmin}>
-            <button
-              type="submit"
-              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm transition hover:bg-gray-50"
-            >
-              Logg ut
-            </button>
-          </form>
-        </div>
-      </header>
-
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6">
-        <AdminControls carGroups={carGroups} dealers={dealers} />
-      </div>
-    </main>
+    <AdminShell activeSection="analytics" userEmail={adminUser.email}>
+      <AdminAnalyticsView
+        analyticsOverview={analyticsOverview}
+        carGroups={carGroups}
+      />
+    </AdminShell>
   )
+}
+
+function getSearchParam(
+  searchParams: Record<string, string | string[] | undefined> | undefined,
+  key: string
+): string | undefined {
+  const value = searchParams?.[key]
+
+  return typeof value === 'string' ? value : undefined
 }

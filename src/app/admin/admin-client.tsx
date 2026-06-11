@@ -1,10 +1,18 @@
 'use client'
 
+import Link from 'next/link'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import type { CarGroupSlug } from '@/lib/car-groups'
-import type { AdminDealer } from '@/lib/admin-data'
+import type {
+  AdminAnalyticsGroupFilter,
+  AdminAnalyticsOverview,
+  AdminAnalyticsPeriodDays,
+  AdminAnalyticsSortDirection,
+  AdminAnalyticsSortKey,
+  AdminDealer,
+} from '@/lib/admin-data'
 import {
   createDealer,
   createDealerUser,
@@ -19,7 +27,12 @@ interface CarGroupOption {
   name: string
 }
 
-interface AdminControlsProps {
+interface AdminAnalyticsViewProps {
+  analyticsOverview: AdminAnalyticsOverview
+  carGroups: CarGroupOption[]
+}
+
+interface AdminUserManagementViewProps {
   dealers: AdminDealer[]
   carGroups: CarGroupOption[]
 }
@@ -29,13 +42,27 @@ const initialActionState: AdminActionState = {
   message: '',
 }
 
-export function AdminControls({ dealers, carGroups }: AdminControlsProps) {
+export function AdminAnalyticsView({
+  analyticsOverview,
+  carGroups,
+}: AdminAnalyticsViewProps) {
+  return (
+    <AdminAnalyticsSection
+      analyticsOverview={analyticsOverview}
+      carGroups={carGroups}
+    />
+  )
+}
+
+export function AdminUserManagementView({
+  dealers,
+  carGroups,
+}: AdminUserManagementViewProps) {
   const [notice, setNotice] = useState<AdminActionState>(initialActionState)
 
   return (
     <>
       <GlobalNotice notice={notice} />
-
       <section className="grid gap-6 lg:grid-cols-2">
         <CreateDealerCard carGroups={carGroups} onNotice={setNotice} />
         <CreateUserCard dealers={dealers} onNotice={setNotice} />
@@ -47,6 +74,330 @@ export function AdminControls({ dealers, carGroups }: AdminControlsProps) {
         onNotice={setNotice}
       />
     </>
+  )
+}
+
+function AdminAnalyticsSection({
+  analyticsOverview,
+  carGroups,
+}: {
+  analyticsOverview: AdminAnalyticsOverview
+  carGroups: CarGroupOption[]
+}) {
+  const { filters, totals, dealerStats, dailyStats } = analyticsOverview
+
+  return (
+    <section className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-gray-950">
+            Trafikkoversikt
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Samlet trafikk, visninger og klikk for alle forhandlere.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <FilterLinks
+            carGroups={carGroups}
+            filters={filters}
+          />
+          <PeriodLinks filters={filters} />
+        </div>
+      </div>
+
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        <MetricCard
+          label="Visninger"
+          value={formatNumber(totals.impressions)}
+        />
+        <MetricCard label="Klikk" value={formatNumber(totals.clicks)} />
+        <MetricCard
+          label="Klikkrate"
+          value={formatPercent(totals.clickRate)}
+        />
+        <MetricCard
+          label="Sesjoner"
+          value={formatNumber(totals.uniqueSessions)}
+        />
+        <MetricCard
+          label="Aktive annonser"
+          value={formatNumber(totals.activeAds)}
+        />
+        <MetricCard
+          label="Aktive forhandlere"
+          value={formatNumber(totals.activeDealers)}
+        />
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[22rem_1fr]">
+        <DailyStatsPanel dailyStats={dailyStats} />
+        <DealerStatsPanel
+          carGroups={carGroups}
+          dealerStats={dealerStats}
+          filters={filters}
+        />
+      </div>
+    </section>
+  )
+}
+
+function FilterLinks({
+  carGroups,
+  filters,
+}: {
+  carGroups: CarGroupOption[]
+  filters: AdminAnalyticsOverview['filters']
+}) {
+  const options: { label: string; group: AdminAnalyticsGroupFilter }[] = [
+    { label: 'Alle', group: 'all' },
+    ...carGroups.map((group) => ({
+      label: group.name,
+      group: group.slug,
+    })),
+  ]
+
+  return (
+    <nav
+      aria-label="Filtrer trafikkoversikt"
+      className="flex flex-wrap items-center gap-2 text-sm font-semibold"
+    >
+      {options.map((option) => {
+        const isActive = option.group === filters.group
+
+        return (
+          <Link
+            key={option.group}
+            href={getAdminAnalyticsHref(filters, { group: option.group })}
+            aria-current={isActive ? 'page' : undefined}
+            className={
+              isActive
+                ? 'rounded-md bg-gray-950 px-3 py-1.5 text-white'
+                : 'rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-700 transition hover:bg-gray-50 hover:text-gray-950'
+            }
+          >
+            {option.label}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
+
+function PeriodLinks({
+  filters,
+}: {
+  filters: AdminAnalyticsOverview['filters']
+}) {
+  const periods: { label: string; periodDays: AdminAnalyticsPeriodDays }[] = [
+    { label: '7 d', periodDays: 7 },
+    { label: '30 d', periodDays: 30 },
+    { label: '90 d', periodDays: 90 },
+    { label: '1 år', periodDays: 365 },
+  ]
+
+  return (
+    <nav
+      aria-label="Velg trafikkperiode"
+      className="flex flex-wrap items-center gap-3 text-xs font-semibold"
+    >
+      {periods.map((period) => {
+        const isActive = period.periodDays === filters.periodDays
+
+        return (
+          <Link
+            key={period.periodDays}
+            href={getAdminAnalyticsHref(filters, {
+              periodDays: period.periodDays,
+            })}
+            aria-current={isActive ? 'page' : undefined}
+            className={
+              isActive
+                ? 'text-gray-950 underline decoration-2 underline-offset-4'
+                : 'text-gray-500 transition hover:text-gray-950 hover:underline hover:underline-offset-4'
+            }
+          >
+            {period.label}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        {label}
+      </p>
+      <p className="mt-2 text-xl font-bold text-gray-950">{value}</p>
+    </div>
+  )
+}
+
+function DailyStatsPanel({
+  dailyStats,
+}: {
+  dailyStats: AdminAnalyticsOverview['dailyStats']
+}) {
+  return (
+    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="border-b border-gray-200 px-5 py-4">
+        <h3 className="text-base font-semibold text-gray-950">
+          Daglig utvikling
+        </h3>
+      </div>
+      <div className="max-h-[32rem] overflow-auto">
+        <table className="min-w-full divide-y divide-gray-200 text-sm">
+          <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <tr>
+              <th className="px-5 py-3">Dato</th>
+              <th className="px-5 py-3 text-right">Visninger</th>
+              <th className="px-5 py-3 text-right">Klikk</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {dailyStats.map((day) => (
+              <tr key={day.date}>
+                <td className="px-5 py-3 text-gray-700">
+                  {formatDate(day.date)}
+                </td>
+                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
+                  {formatNumber(day.impressions)}
+                </td>
+                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
+                  {formatNumber(day.clicks)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+function DealerStatsPanel({
+  dealerStats,
+  carGroups,
+  filters,
+}: {
+  dealerStats: AdminAnalyticsOverview['dealerStats']
+  carGroups: CarGroupOption[]
+  filters: AdminAnalyticsOverview['filters']
+}) {
+  return (
+    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-4 border-b border-gray-200 px-5 py-4">
+        <h3 className="text-base font-semibold text-gray-950">
+          Forhandlere
+        </h3>
+        <span className="text-sm font-medium text-gray-500">
+          {dealerStats.length} forhandler
+          {dealerStats.length === 1 ? '' : 'e'}
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-[58rem] divide-y divide-gray-200 text-sm">
+          <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <tr>
+              <SortableHeader
+                filters={filters}
+                label="Firma"
+                sortKey="name"
+              />
+              <SortableHeader
+                filters={filters}
+                label="Gruppe"
+                sortKey="group"
+              />
+              <th className="px-5 py-3">OrgId</th>
+              <SortableHeader
+                align="right"
+                filters={filters}
+                label="Visninger"
+                sortKey="impressions"
+              />
+              <SortableHeader
+                align="right"
+                filters={filters}
+                label="Klikk"
+                sortKey="clicks"
+              />
+              <SortableHeader
+                align="right"
+                filters={filters}
+                label="Klikkrate"
+                sortKey="clickRate"
+              />
+              <th className="px-5 py-3 text-right">Sesjoner</th>
+              <th className="px-5 py-3 text-right">Annonser</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {dealerStats.map((dealer) => (
+              <tr key={dealer.dealerId}>
+                <td className="px-5 py-3 font-medium text-gray-950">
+                  {dealer.name}
+                </td>
+                <td className="px-5 py-3 text-gray-700">
+                  {getCarGroupName(carGroups, dealer.groupSlug)}
+                </td>
+                <td className="px-5 py-3 font-mono text-xs text-gray-700">
+                  {dealer.orgId}
+                </td>
+                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
+                  {formatNumber(dealer.impressions)}
+                </td>
+                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
+                  {formatNumber(dealer.clicks)}
+                </td>
+                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
+                  {formatPercent(dealer.clickRate)}
+                </td>
+                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
+                  {formatNumber(dealer.uniqueSessions)}
+                </td>
+                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
+                  {formatNumber(dealer.activeAds)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  filters,
+  align = 'left',
+}: {
+  label: string
+  sortKey: AdminAnalyticsSortKey
+  filters: AdminAnalyticsOverview['filters']
+  align?: 'left' | 'right'
+}) {
+  const isActive = filters.sort === sortKey
+  const nextDirection = getNextSortDirection(filters, sortKey)
+
+  return (
+    <th className={`px-5 py-3 ${align === 'right' ? 'text-right' : ''}`}>
+      <Link
+        href={getAdminAnalyticsHref(filters, {
+          sort: sortKey,
+          direction: nextDirection,
+        })}
+        className="inline-flex items-center gap-1 transition hover:text-gray-950 hover:underline hover:underline-offset-4"
+      >
+        {label}
+        {isActive && <span>{filters.direction === 'asc' ? '↑' : '↓'}</span>}
+      </Link>
+    </th>
   )
 }
 
@@ -693,6 +1044,67 @@ function ChevronIcon({ isOpen }: { isOpen: boolean }) {
       <path d="m6 9 6 6 6-6" />
     </svg>
   )
+}
+
+function getAdminAnalyticsHref(
+  filters: AdminAnalyticsOverview['filters'],
+  overrides: Partial<{
+    group: AdminAnalyticsGroupFilter
+    periodDays: AdminAnalyticsPeriodDays
+    sort: AdminAnalyticsSortKey
+    direction: AdminAnalyticsSortDirection
+  }>
+): string {
+  const params = new URLSearchParams()
+  const group = overrides.group ?? filters.group
+  const periodDays = overrides.periodDays ?? filters.periodDays
+  const sort = overrides.sort ?? filters.sort
+  const direction = overrides.direction ?? filters.direction
+
+  if (group !== 'all') {
+    params.set('group', group)
+  }
+  if (periodDays !== 30) {
+    params.set('period', String(periodDays))
+  }
+  if (sort !== 'clicks') {
+    params.set('sort', sort)
+  }
+  if (direction !== 'desc') {
+    params.set('direction', direction)
+  }
+
+  const query = params.toString()
+  return query ? `/admin?${query}` : '/admin'
+}
+
+function getNextSortDirection(
+  filters: AdminAnalyticsOverview['filters'],
+  sortKey: AdminAnalyticsSortKey
+): AdminAnalyticsSortDirection {
+  if (filters.sort === sortKey) {
+    return filters.direction === 'asc' ? 'desc' : 'asc'
+  }
+
+  return sortKey === 'name' || sortKey === 'group' ? 'asc' : 'desc'
+}
+
+function formatNumber(value: number): string {
+  return value.toLocaleString('nb-NO')
+}
+
+function formatPercent(value: number): string {
+  return value.toLocaleString('nb-NO', {
+    maximumFractionDigits: 1,
+    style: 'percent',
+  })
+}
+
+function formatDate(value: string): string {
+  return new Intl.DateTimeFormat('nb-NO', {
+    day: '2-digit',
+    month: '2-digit',
+  }).format(new Date(`${value}T00:00:00`))
 }
 
 function getCarGroupName(
