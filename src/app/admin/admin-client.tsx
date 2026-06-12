@@ -4,6 +4,12 @@ import Link from 'next/link'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import {
+  RankingBarChart,
+  TrafficTrendChart,
+  type RankingPoint,
+  type TrafficTrendPoint,
+} from '@/components/analytics-charts'
 import type { CarGroupSlug } from '@/lib/car-groups'
 import type {
   AdminAnalyticsGroupFilter,
@@ -139,12 +145,86 @@ function AdminAnalyticsSection({
         />
       </section>
 
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <TrafficTrendPanel dailyStats={dailyStats} />
+        <TopDealersChartPanel dealerStats={dealerStats} />
+      </section>
+
       <div className="grid gap-6 xl:grid-cols-[22rem_1fr]">
         <DailyStatsPanel dailyStats={dailyStats} />
         <DealerStatsPanel
           carGroups={carGroups}
           dealerStats={dealerStats}
           filters={filters}
+        />
+      </div>
+    </section>
+  )
+}
+
+function TrafficTrendPanel({
+  dailyStats,
+}: {
+  dailyStats: AdminAnalyticsOverview['dailyStats']
+}) {
+  const points: TrafficTrendPoint[] = [...dailyStats]
+    .reverse()
+    .map((day) => ({
+      date: day.date,
+      impressions: day.impressions,
+      clicks: day.clicks,
+    }))
+
+  return (
+    <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+      <div>
+        <h3 className="text-base font-semibold text-gray-950">
+          Trafikk over tid
+        </h3>
+        <p className="mt-1 text-sm text-gray-500">
+          Daglige visninger og klikk i valgt periode.
+        </p>
+      </div>
+      <div className="mt-5 h-72">
+        <TrafficTrendChart
+          ariaLabel="Linjediagram som viser daglige visninger og klikk"
+          points={points}
+        />
+      </div>
+    </section>
+  )
+}
+
+function TopDealersChartPanel({
+  dealerStats,
+}: {
+  dealerStats: AdminAnalyticsOverview['dealerStats']
+}) {
+  const points: RankingPoint[] = [...dealerStats]
+    .sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions)
+    .slice(0, 10)
+    .map((dealer) => ({
+      label: dealer.name,
+      value: dealer.clicks,
+      impressions: dealer.impressions,
+      clickRate: dealer.clickRate,
+    }))
+
+  return (
+    <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+      <div>
+        <h3 className="text-base font-semibold text-gray-950">
+          Topp forhandlere
+        </h3>
+        <p className="mt-1 text-sm text-gray-500">
+          Rangert etter klikk i valgt periode.
+        </p>
+      </div>
+      <div className="mt-5 h-72">
+        <RankingBarChart
+          ariaLabel="Stolpediagram som viser topp forhandlere etter klikk"
+          points={points}
+          valueLabel="Klikk"
         />
       </div>
     </section>

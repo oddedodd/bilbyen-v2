@@ -1,5 +1,11 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
+import {
+  RankingBarChart,
+  TrafficTrendChart,
+  type RankingPoint,
+  type TrafficTrendPoint,
+} from '@/components/analytics-charts'
 import { requireDealerUser } from '@/lib/dealer-auth'
 import {
   type DashboardPeriodDays,
@@ -157,19 +163,102 @@ async function DealerDashboard({
                 dealerId={stats.selectedDealer.id}
               />
             ) : (
-              <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
-                <DailyStatsTable
-                  dailyStats={stats.dailyStats}
-                  periodDays={stats.periodDays}
-                  dealerId={stats.selectedDealer.id}
-                />
-                <AdStatsTable adStats={stats.adStats} />
-              </div>
+              <>
+                <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+                  <TrafficTrendPanel
+                    dailyStats={stats.dailyStats}
+                    dealerId={stats.selectedDealer.id}
+                    periodDays={stats.periodDays}
+                  />
+                  <TopAdsChartPanel adStats={stats.adStats} />
+                </section>
+
+                <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
+                  <DailyStatsTable
+                    dailyStats={stats.dailyStats}
+                    periodDays={stats.periodDays}
+                    dealerId={stats.selectedDealer.id}
+                  />
+                  <AdStatsTable adStats={stats.adStats} />
+                </div>
+              </>
             )}
           </>
         )}
       </div>
     </main>
+  )
+}
+
+function TrafficTrendPanel({
+  dailyStats,
+  dealerId,
+  periodDays,
+}: {
+  dailyStats: DailyStats[]
+  dealerId: string
+  periodDays: DashboardPeriodDays
+}) {
+  const points: TrafficTrendPoint[] = [...dailyStats]
+    .reverse()
+    .map((day) => ({
+      date: day.date,
+      impressions: day.impressions,
+      clicks: day.clicks,
+    }))
+
+  return (
+    <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-gray-950">
+            Trafikk over tid
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Daglige visninger og klikk i valgt periode.
+          </p>
+        </div>
+        <PeriodLinks dealerId={dealerId} periodDays={periodDays} />
+      </div>
+      <div className="mt-5 h-72">
+        <TrafficTrendChart
+          ariaLabel="Linjediagram som viser daglige visninger og klikk for forhandler"
+          points={points}
+        />
+      </div>
+    </section>
+  )
+}
+
+function TopAdsChartPanel({ adStats }: { adStats: AdStats[] }) {
+  const points: RankingPoint[] = [...adStats]
+    .sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions)
+    .slice(0, 10)
+    .map((ad) => ({
+      label: ad.title,
+      value: ad.clicks,
+      impressions: ad.impressions,
+      clickRate: ad.clickRate,
+    }))
+
+  return (
+    <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+      <div>
+        <h2 className="text-base font-semibold text-gray-950">
+          Topp annonser
+        </h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Rangert etter klikk i valgt periode.
+        </p>
+      </div>
+      <div className="mt-5 h-72">
+        <RankingBarChart
+          ariaLabel="Stolpediagram som viser topp annonser etter klikk"
+          points={points}
+          valueLabel="Klikk"
+        />
+      </div>
+    </section>
   )
 }
 
