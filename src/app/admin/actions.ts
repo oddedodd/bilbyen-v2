@@ -1,8 +1,9 @@
 'use server'
 
+import type { User } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { requireAdminUser, isAdminEmail } from '@/lib/admin-auth'
+import { ensureAdminAccess, requireAdminUser } from '@/lib/admin-auth'
 import { normalizeCarGroupSlug } from '@/lib/car-groups'
 import {
   normalizeDealerRole,
@@ -25,7 +26,7 @@ export async function loginAdmin(formData: FormData) {
   }
 
   const supabase = await createSupabaseServerClient()
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   })
@@ -34,7 +35,7 @@ export async function loginAdmin(formData: FormData) {
     redirect('/admin/login?error=invalid')
   }
 
-  if (!isAdminEmail(email)) {
+  if (!data.user || !(await ensureAdminAccess(data.user))) {
     await supabase.auth.signOut()
     redirect('/admin/login?error=invalid')
   }
@@ -46,6 +47,150 @@ export async function logoutAdmin() {
   const supabase = await createSupabaseServerClient()
   await supabase.auth.signOut()
   redirect('/admin/login')
+}
+
+export async function changeAdminPassword(
+  _state: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const adminUser = await requireAdminUser()
+  const currentPassword = readFormString(formData, 'currentPassword')
+  const newPassword = readFormString(formData, 'newPassword')
+  const confirmPassword = readFormString(formData, 'confirmPassword')
+
+  if (!adminUser.email || !currentPassword || !newPassword || !confirmPassword) {
+    return actionError('Alle feltene må fylles ut.')
+  }
+
+  if (newPassword.length < 8) {
+    return actionError('Nytt passord må være minst 8 tegn.')
+  }
+
+  if (newPassword !== confirmPassword) {
+    return actionError('Nytt passord og bekreftelse må være like.')
+  }
+
+  const supabase = await createSupabaseServerClient()
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: adminUser.email,
+    password: currentPassword,
+  })
+
+  if (signInError) {
+    return actionError('Nåværende passord er feil.')
+  }
+
+  const { error: updateError } = await supabase.auth.updateUser({
+    password: newPassword,
+  })
+
+  if (updateError) {
+    return actionError('Kunne ikke oppdatere passordet.')
+  }
+
+  return actionSuccess('Passordet ble oppdatert.')
+}
+
+export async function createAdminUser(
+  _state: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const currentAdmin = await requireAdminUser()
+  const email = readFormString(formData, 'email').toLowerCase()
+  const password = readFormString(formData, 'password')
+
+  if (!email || !password) {
+    return actionError('E-post og midlertidig passord må fylles ut.')
+  }
+
+  if (password.length < 8) {
+    return actionError('Passord må være minst 8 tegn.')
+  }
+
+  const supabase = createSupabaseAdminClient()
+  let existingAdmin: Awaited<ReturnType<typeof findAdminUserByEmail>>
+  let authUser: User | null
+
+  try {
+    existingAdmin = await findAdminUserByEmail(email)
+    authUser = await findAuthUserByEmail(email)
+  } catch {
+    return actionError('Kunne ikke kontrollere brukerlisten.')
+  }
+
+  if (existingAdmin) {
+    return actionError('Denne brukeren er allerede administrator.')
+  }
+
+  if (!authUser) {
+    const { data, error } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    })
+
+    if (error || !data.user) {
+      return actionError('Kunne ikke opprette administratorbrukeren.')
+    }
+
+    authUser = data.user
+  }
+
+  const { error } = await supabase.from('admin_users').insert({
+    user_id: authUser.id,
+    email,
+    created_by: currentAdmin.id,
+  })
+
+  if (error) {
+    return actionError('Kunne ikke gi brukeren administratortilgang.')
+  }
+
+  revalidatePath('/admin/innstillinger')
+
+  return actionSuccess('Administratorbrukeren ble lagt til.')
+}
+
+export async function deleteAdminUser(
+  _state: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const currentAdmin = await requireAdminUser()
+  const userId = readFormString(formData, 'userId')
+
+  if (!userId) {
+    return actionError('Mangler administrator som skal fjernes.')
+  }
+
+  if (userId === currentAdmin.id) {
+    return actionError('Du kan ikke fjerne din egen administratortilgang.')
+  }
+
+  const supabase = createSupabaseAdminClient()
+  const { count, error: countError } = await supabase
+    .from('admin_users')
+    .select('user_id', { count: 'exact', head: true })
+
+  if (countError) {
+    return actionError('Kunne ikke kontrollere administratorlisten.')
+  }
+
+  if ((count ?? 0) <= 1) {
+    return actionError('Siste administrator kan ikke fjernes.')
+  }
+
+  const { error } = await supabase
+    .from('admin_users')
+    .delete()
+    .eq('user_id', userId)
+
+  if (error) {
+    return actionError('Kunne ikke fjerne administratortilgangen.')
+  }
+
+  revalidatePath('/admin/innstillinger')
+
+  return actionSuccess('Administratortilgangen ble fjernet.')
 }
 
 export async function createDealer(
@@ -335,6 +480,52 @@ async function createAvailableDealerSlug(
     .maybeSingle()
 
   return data ? `${baseSlug}-${orgId}` : baseSlug
+}
+
+async function findAdminUserByEmail(email: string) {
+  const supabase = createSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('user_id, email')
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []).find(
+    (adminUser) => adminUser.email.toLowerCase() === email.toLowerCase()
+  )
+}
+
+async function findAuthUserByEmail(email: string): Promise<User | null> {
+  const supabase = createSupabaseAdminClient()
+  let page = 1
+  const perPage = 1000
+
+  while (true) {
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page,
+      perPage,
+    })
+
+    if (error) {
+      throw error
+    }
+
+    const user = data.users.find(
+      (authUser) => authUser.email?.toLowerCase() === email.toLowerCase()
+    )
+
+    if (user) {
+      return user
+    }
+
+    if (data.users.length < perPage) {
+      return null
+    }
+
+    page += 1
+  }
 }
 
 function readFormString(formData: FormData, field: string): string {

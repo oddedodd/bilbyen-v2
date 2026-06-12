@@ -16,6 +16,10 @@ Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 are safe to expose to the browser. Service role keys, database URLs, FINN API
 keys, and admin credentials must stay server-side and out of git.
 
+`ADMIN_EMAILS` is used as an admin bootstrap/failsafe. After the first admin has
+signed in, admin access is managed in the `admin_users` table through the admin
+settings page.
+
 Use the session pooler connection string instead of direct connection if your
 network does not support IPv6.
 

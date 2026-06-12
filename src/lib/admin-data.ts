@@ -67,6 +67,13 @@ export interface AdminAnalyticsDealerStats {
   activeAds: number
 }
 
+export interface AdminUser {
+  userId: string
+  email: string
+  createdAt: string
+  createdBy?: string
+}
+
 interface DealerRow {
   id: string
   org_id: string
@@ -88,6 +95,32 @@ interface AdminAnalyticsStatRow {
   carousel_impressions: number
   ad_clicks: number
   unique_sessions: number
+}
+
+interface AdminUserRow {
+  user_id: string
+  email: string
+  created_at: string
+  created_by: string | null
+}
+
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  const supabase = createSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('user_id, email, created_at, created_by')
+    .order('email')
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as AdminUserRow[]).map((adminUser) => ({
+    userId: adminUser.user_id,
+    email: adminUser.email,
+    createdAt: adminUser.created_at,
+    createdBy: adminUser.created_by ?? undefined,
+  }))
 }
 
 export async function getAdminDealers(): Promise<AdminDealer[]> {

@@ -6,7 +6,6 @@ export type AdminSection =
   | 'analytics'
   | 'dealers'
   | 'ads'
-  | 'users'
   | 'settings'
 
 const navItems: {
@@ -17,7 +16,7 @@ const navItems: {
   { href: '/admin', label: 'Statistikk', section: 'analytics' },
   { href: '/admin/forhandlere', label: 'Forhandlere', section: 'dealers' },
   { href: '/admin/annonser', label: 'Annonser', section: 'ads' },
-  { href: '/admin/brukere', label: 'Brukere', section: 'users' },
+  { href: '/admin/innstillinger', label: 'Innstillinger', section: 'settings' },
 ]
 
 export function AdminShell({

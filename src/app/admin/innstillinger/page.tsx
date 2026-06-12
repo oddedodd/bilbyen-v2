@@ -1,6 +1,8 @@
 import { Suspense } from 'react'
 import { requireAdminUser } from '@/lib/admin-auth'
+import { getAdminUsers, type AdminUser } from '@/lib/admin-data'
 import { AdminShell } from '../admin-shell'
+import { AdminSettingsView } from '../settings-client'
 
 export default function AdminSettingsPage() {
   return (
@@ -20,20 +22,23 @@ function AdminSettingsLoading() {
 
 async function AdminSettingsDashboard() {
   const adminUser = await requireAdminUser()
+  let adminUsers: AdminUser[] = []
+  let adminUsersError: string | undefined
+
+  try {
+    adminUsers = await getAdminUsers()
+  } catch {
+    adminUsersError =
+      'Administratorlisten kan ikke leses. Kontroller at migrasjonen for admin_users er kjørt i Supabase.'
+  }
 
   return (
     <AdminShell activeSection="settings" userEmail={adminUser.email}>
-      <section className="px-6 py-6 lg:px-8">
-        <div>
-          <h2 className="font-serif text-2xl font-bold leading-none text-[#0b263f]">
-            Innstillinger
-          </h2>
-        </div>
-
-        <div className="mt-6 rounded-lg border border-dashed border-slate-300 bg-white px-5 py-12 text-center text-sm text-slate-500 shadow-sm">
-          Ingen innstillinger er lagt til ennå.
-        </div>
-      </section>
+      <AdminSettingsView
+        adminUsers={adminUsers}
+        adminUsersError={adminUsersError}
+        currentUserId={adminUser.id}
+      />
     </AdminShell>
   )
 }
