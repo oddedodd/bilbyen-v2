@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { requireAdminUser } from '@/lib/admin-auth'
+import { isBootstrapAdminEmail, requireAdminUser } from '@/lib/admin-auth'
 import { getAdminUsers, type AdminUser } from '@/lib/admin-data'
 import { AdminShell } from '../admin-shell'
 import { AdminSettingsView } from '../settings-client'
@@ -38,6 +38,9 @@ async function AdminSettingsDashboard() {
         adminUsers={adminUsers}
         adminUsersError={adminUsersError}
         currentUserId={adminUser.id}
+        protectedAdminUserIds={adminUsers
+          .filter((user) => isBootstrapAdminEmail(user.email))
+          .map((user) => user.userId)}
       />
     </AdminShell>
   )

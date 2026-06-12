@@ -8,6 +8,7 @@ import {
   changeAdminPassword,
   createAdminUser,
   deleteAdminUser,
+  resetAdminPassword,
   type AdminActionState,
 } from './actions'
 
@@ -15,6 +16,7 @@ interface AdminSettingsViewProps {
   adminUsers: AdminUser[]
   adminUsersError?: string
   currentUserId: string
+  protectedAdminUserIds: string[]
 }
 
 const initialActionState: AdminActionState = {
@@ -26,6 +28,7 @@ export function AdminSettingsView({
   adminUsers,
   adminUsersError,
   currentUserId,
+  protectedAdminUserIds,
 }: AdminSettingsViewProps) {
   const [notice, setNotice] = useState<AdminActionState>(initialActionState)
 
@@ -41,13 +44,14 @@ export function AdminSettingsView({
         </p>
       </div>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(22rem,0.8fr)_minmax(0,1.2fr)]">
+      <section className="flex flex-col gap-6">
         <PasswordSettingsCard onNotice={setNotice} />
         <AdminUsersCard
           adminUsers={adminUsers}
           adminUsersError={adminUsersError}
           currentUserId={currentUserId}
           onNotice={setNotice}
+          protectedAdminUserIds={protectedAdminUserIds}
         />
       </section>
     </section>
@@ -140,12 +144,16 @@ function AdminUsersCard({
   adminUsersError,
   currentUserId,
   onNotice,
+  protectedAdminUserIds,
 }: {
   adminUsers: AdminUser[]
   adminUsersError?: string
   currentUserId: string
   onNotice: (notice: AdminActionState) => void
+  protectedAdminUserIds: string[]
 }) {
+  const protectedAdminIds = new Set(protectedAdminUserIds)
+
   return (
     <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 px-5 py-4">
@@ -166,11 +174,12 @@ function AdminUsersCard({
       )}
 
       <div className="overflow-x-auto border-t border-slate-200">
-        <table className="w-full min-w-[42rem] divide-y divide-slate-200 text-sm">
+        <table className="w-full min-w-[58rem] divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
             <tr>
               <th className="px-5 py-3">E-post</th>
               <th className="px-5 py-3">Opprettet</th>
+              <th className="px-5 py-3">Nytt passord</th>
               <th className="px-5 py-3 text-right">Handling</th>
             </tr>
           </thead>
@@ -179,7 +188,7 @@ function AdminUsersCard({
               <tr>
                 <td
                   className="px-5 py-8 text-center text-slate-500"
-                  colSpan={3}
+                  colSpan={4}
                 >
                   Administratorlisten vises når databasen er oppdatert.
                 </td>
@@ -192,6 +201,7 @@ function AdminUsersCard({
                   currentUserId={currentUserId}
                   isLastAdmin={adminUsers.length <= 1}
                   onNotice={onNotice}
+                  protectedByEnv={protectedAdminIds.has(adminUser.userId)}
                 />
               ))
             )}
@@ -275,31 +285,46 @@ function AdminUserRow({
   currentUserId,
   isLastAdmin,
   onNotice,
+  protectedByEnv,
 }: {
   adminUser: AdminUser
   currentUserId: string
   isLastAdmin: boolean
   onNotice: (notice: AdminActionState) => void
+  protectedByEnv: boolean
 }) {
   const router = useRouter()
-  const [state, formAction] = useActionState(
+  const [deleteState, deleteAction] = useActionState(
     deleteAdminUser,
     initialActionState
   )
+  const [passwordState, passwordAction] = useActionState(
+    resetAdminPassword,
+    initialActionState
+  )
   const isCurrentUser = adminUser.userId === currentUserId
-  const canDelete = !isCurrentUser && !isLastAdmin
+  const canDelete = !isCurrentUser && !isLastAdmin && !protectedByEnv
+  const canResetPassword = !isCurrentUser
 
   useEffect(() => {
-    if (state.ok === null) {
+    if (deleteState.ok === null) {
       return
     }
 
-    onNotice(state)
+    onNotice(deleteState)
 
-    if (state.ok) {
+    if (deleteState.ok) {
       router.refresh()
     }
-  }, [onNotice, router, state])
+  }, [deleteState, onNotice, router])
+
+  useEffect(() => {
+    if (passwordState.ok === null) {
+      return
+    }
+
+    onNotice(passwordState)
+  }, [onNotice, passwordState])
 
   return (
     <tr>
@@ -311,10 +336,21 @@ function AdminUserRow({
               Deg
             </span>
           )}
+          {protectedByEnv && (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+              Beskyttet
+            </span>
+          )}
         </div>
-        {state.ok === false && (
+        {deleteState.ok === false && (
           <ActionMessage
-            state={state}
+            state={deleteState}
+            className="mt-2 rounded-md border px-3 py-2 text-sm"
+          />
+        )}
+        {passwordState.ok === false && (
+          <ActionMessage
+            state={passwordState}
             className="mt-2 rounded-md border px-3 py-2 text-sm"
           />
         )}
@@ -322,9 +358,34 @@ function AdminUserRow({
       <td className="px-5 py-4 text-slate-600">
         {formatDate(adminUser.createdAt)}
       </td>
+      <td className="px-5 py-4">
+        {canResetPassword ? (
+          <form
+            action={passwordAction}
+            className="flex flex-col gap-2 sm:flex-row"
+          >
+            <input type="hidden" name="userId" value={adminUser.userId} />
+            <input
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              placeholder="Nytt passord"
+              required
+              className="min-w-48 rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+            />
+            <SecondarySubmitButton
+              label="Sett"
+              pendingLabel="Setter ..."
+            />
+          </form>
+        ) : (
+          <span className="text-sm text-slate-400">Bruk skjemaet øverst</span>
+        )}
+      </td>
       <td className="px-5 py-4 text-right">
         <form
-          action={formAction}
+          action={deleteAction}
           onSubmit={(event) => {
             if (!canDelete) {
               event.preventDefault()
@@ -341,7 +402,10 @@ function AdminUserRow({
           }}
         >
           <input type="hidden" name="userId" value={adminUser.userId} />
-          <DeleteAdminButton disabled={!canDelete} />
+          <DeleteAdminButton
+            disabled={!canDelete}
+            label={protectedByEnv ? 'Beskyttet' : 'Fjern'}
+          />
         </form>
       </td>
     </tr>
@@ -381,7 +445,33 @@ function SubmitButton({
   )
 }
 
-function DeleteAdminButton({ disabled }: { disabled: boolean }) {
+function SecondarySubmitButton({
+  label,
+  pendingLabel,
+}: {
+  label: string
+  pendingLabel: string
+}) {
+  const { pending } = useFormStatus()
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {pending ? pendingLabel : label}
+    </button>
+  )
+}
+
+function DeleteAdminButton({
+  disabled,
+  label,
+}: {
+  disabled: boolean
+  label: string
+}) {
   const { pending } = useFormStatus()
 
   return (
@@ -390,7 +480,7 @@ function DeleteAdminButton({ disabled }: { disabled: boolean }) {
       disabled={pending || disabled}
       className="text-xs font-semibold text-red-700 transition hover:text-red-900 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:no-underline"
     >
-      {pending ? 'Fjerner ...' : 'Fjern'}
+      {pending ? 'Fjerner ...' : label}
     </button>
   )
 }

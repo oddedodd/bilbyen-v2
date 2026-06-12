@@ -3,7 +3,11 @@
 import type { User } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { ensureAdminAccess, requireAdminUser } from '@/lib/admin-auth'
+import {
+  ensureAdminAccess,
+  isBootstrapAdminEmail,
+  requireAdminUser,
+} from '@/lib/admin-auth'
 import { normalizeCarGroupSlug } from '@/lib/car-groups'
 import {
   normalizeDealerRole,
@@ -179,6 +183,12 @@ export async function deleteAdminUser(
     return actionError('Siste administrator kan ikke fjernes.')
   }
 
+  const adminToDelete = await findAdminUserById(userId)
+
+  if (isBootstrapAdminEmail(adminToDelete?.email)) {
+    return actionError('Denne administratoren er beskyttet av ADMIN_EMAILS.')
+  }
+
   const { error } = await supabase
     .from('admin_users')
     .delete()
@@ -191,6 +201,44 @@ export async function deleteAdminUser(
   revalidatePath('/admin/innstillinger')
 
   return actionSuccess('Administratortilgangen ble fjernet.')
+}
+
+export async function resetAdminPassword(
+  _state: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const currentAdmin = await requireAdminUser()
+  const userId = readFormString(formData, 'userId')
+  const password = readFormString(formData, 'password')
+
+  if (!userId || !password) {
+    return actionError('Velg administrator og skriv inn nytt passord.')
+  }
+
+  if (userId === currentAdmin.id) {
+    return actionError('Bruk passordskjemaet øverst for din egen bruker.')
+  }
+
+  if (password.length < 8) {
+    return actionError('Passord må være minst 8 tegn.')
+  }
+
+  const adminUser = await findAdminUserById(userId)
+
+  if (!adminUser) {
+    return actionError('Kunne ikke finne administratoren.')
+  }
+
+  const supabase = createSupabaseAdminClient()
+  const { error } = await supabase.auth.admin.updateUserById(userId, {
+    password,
+  })
+
+  if (error) {
+    return actionError('Kunne ikke oppdatere passordet.')
+  }
+
+  return actionSuccess(`Passordet til ${adminUser.email} ble oppdatert.`)
 }
 
 export async function createDealer(
@@ -495,6 +543,21 @@ async function findAdminUserByEmail(email: string) {
   return (data ?? []).find(
     (adminUser) => adminUser.email.toLowerCase() === email.toLowerCase()
   )
+}
+
+async function findAdminUserById(userId: string) {
+  const supabase = createSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('user_id, email')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data
 }
 
 async function findAuthUserByEmail(email: string): Promise<User | null> {
