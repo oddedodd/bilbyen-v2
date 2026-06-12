@@ -5,9 +5,7 @@ import { useActionState, useEffect, useRef, useState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import {
-  RankingBarChart,
   TrafficTrendChart,
-  type RankingPoint,
   type TrafficTrendPoint,
 } from '@/components/analytics-charts'
 import type { CarGroupSlug } from '@/lib/car-groups'
@@ -67,8 +65,16 @@ export function AdminUserManagementView({
   const [notice, setNotice] = useState<AdminActionState>(initialActionState)
 
   return (
-    <>
+    <section className="flex flex-col gap-6 px-6 py-6 lg:px-8">
       <GlobalNotice notice={notice} />
+      <div>
+        <h2 className="font-serif text-2xl font-bold leading-none text-[#0b263f]">
+          Forhandlere og brukere
+        </h2>
+        <p className="mt-2 text-sm text-slate-500">
+          Administrer forhandlere, grupper og brukertilganger.
+        </p>
+      </div>
       <section className="grid gap-6 lg:grid-cols-2">
         <CreateDealerCard carGroups={carGroups} onNotice={setNotice} />
         <CreateUserCard dealers={dealers} onNotice={setNotice} />
@@ -79,7 +85,7 @@ export function AdminUserManagementView({
         dealers={dealers}
         onNotice={setNotice}
       />
-    </>
+    </section>
   )
 }
 
@@ -93,17 +99,17 @@ function AdminAnalyticsSection({
   const { filters, totals, dealerStats, dailyStats } = analyticsOverview
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <section className="flex flex-col gap-5 px-6 py-6 lg:px-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-lg font-bold text-gray-950">
+          <h2 className="font-serif text-2xl font-bold leading-none text-[#0b263f]">
             Trafikkoversikt
           </h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-slate-500">
             Samlet trafikk, visninger og klikk for alle forhandlere.
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:items-end">
+        <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
           <FilterLinks
             carGroups={carGroups}
             filters={filters}
@@ -112,52 +118,51 @@ function AdminAnalyticsSection({
         </div>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         <MetricCard
-          description="Antall ganger biler er registrert vist i karusellene."
+          accent
+          description="Ganger biler er vist i karusellene"
           label="Visninger"
           value={formatNumber(totals.impressions)}
         />
         <MetricCard
-          description="Antall klikk videre til FINN-annonsene."
+          accent
+          description="Videreklikk til FINN-annonsene"
           label="Klikk"
           value={formatNumber(totals.clicks)}
         />
         <MetricCard
-          description="Andel visninger som endte med klikk."
+          accent
+          description="Andel visninger som endte med klikk"
           label="Klikkrate"
           value={formatPercent(totals.clickRate)}
         />
         <MetricCard
-          description="Unike besøksøkter registrert i perioden."
+          description="Unike besøkende i perioden"
           label="Sesjoner"
           value={formatNumber(totals.uniqueSessions)}
         />
         <MetricCard
-          description="Annonser som har hatt visninger eller klikk."
+          description="Annonser med visning eller klikk"
           label="Aktive annonser"
           value={formatNumber(totals.activeAds)}
         />
         <MetricCard
-          description="Forhandlere med registrert trafikk i perioden."
+          description={`av ${formatNumber(dealerStats.length)} registrerte i perioden`}
           label="Aktive forhandlere"
           value={formatNumber(totals.activeDealers)}
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <section>
         <TrafficTrendPanel dailyStats={dailyStats} />
-        <TopDealersChartPanel dealerStats={dealerStats} />
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[22rem_1fr]">
-        <DailyStatsPanel dailyStats={dailyStats} />
-        <DealerStatsPanel
-          carGroups={carGroups}
-          dealerStats={dealerStats}
-          filters={filters}
-        />
-      </div>
+      <DealerStatsPanel
+        carGroups={carGroups}
+        dealerStats={dealerStats}
+        filters={filters}
+      />
     </section>
   )
 }
@@ -176,55 +181,19 @@ function TrafficTrendPanel({
     }))
 
   return (
-    <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       <div>
-        <h3 className="text-base font-semibold text-gray-950">
-          Trafikk over tid
+        <h3 className="text-base font-bold text-[#0b263f]">
+          Daglig utvikling
         </h3>
-        <p className="mt-1 text-sm text-gray-500">
-          Daglige visninger og klikk i valgt periode.
+        <p className="mt-1 text-sm text-slate-500">
+          Visninger og klikk per dag
         </p>
       </div>
-      <div className="mt-5 h-72">
+      <div className="mt-4 h-48 sm:h-56">
         <TrafficTrendChart
           ariaLabel="Linjediagram som viser daglige visninger og klikk"
           points={points}
-        />
-      </div>
-    </section>
-  )
-}
-
-function TopDealersChartPanel({
-  dealerStats,
-}: {
-  dealerStats: AdminAnalyticsOverview['dealerStats']
-}) {
-  const points: RankingPoint[] = [...dealerStats]
-    .sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions)
-    .slice(0, 10)
-    .map((dealer) => ({
-      label: dealer.name,
-      value: dealer.clicks,
-      impressions: dealer.impressions,
-      clickRate: dealer.clickRate,
-    }))
-
-  return (
-    <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-      <div>
-        <h3 className="text-base font-semibold text-gray-950">
-          Topp forhandlere
-        </h3>
-        <p className="mt-1 text-sm text-gray-500">
-          Rangert etter klikk i valgt periode.
-        </p>
-      </div>
-      <div className="mt-5 h-72">
-        <RankingBarChart
-          ariaLabel="Stolpediagram som viser topp forhandlere etter klikk"
-          points={points}
-          valueLabel="Klikk"
         />
       </div>
     </section>
@@ -249,7 +218,7 @@ function FilterLinks({
   return (
     <nav
       aria-label="Filtrer trafikkoversikt"
-      className="flex flex-wrap items-center gap-2 text-sm font-semibold"
+      className="flex flex-wrap items-center gap-2 text-xs font-bold"
     >
       {options.map((option) => {
         const isActive = option.group === filters.group
@@ -261,8 +230,8 @@ function FilterLinks({
             aria-current={isActive ? 'page' : undefined}
             className={
               isActive
-                ? 'rounded-md bg-gray-950 px-3 py-1.5 text-white'
-                : 'rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-700 transition hover:bg-gray-50 hover:text-gray-950'
+                ? 'rounded-full bg-[#0d2d49] px-4 py-2 text-white'
+                : 'rounded-full border border-slate-200 bg-white px-4 py-2 text-[#173b58] transition hover:border-slate-300 hover:bg-slate-50'
             }
           >
             {option.label}
@@ -288,7 +257,7 @@ function PeriodLinks({
   return (
     <nav
       aria-label="Velg trafikkperiode"
-      className="flex flex-wrap items-center gap-3 text-xs font-semibold"
+      className="flex flex-wrap items-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100 p-0.5 text-xs font-bold"
     >
       {periods.map((period) => {
         const isActive = period.periodDays === filters.periodDays
@@ -302,8 +271,8 @@ function PeriodLinks({
             aria-current={isActive ? 'page' : undefined}
             className={
               isActive
-                ? 'text-gray-950 underline decoration-2 underline-offset-4'
-                : 'text-gray-500 transition hover:text-gray-950 hover:underline hover:underline-offset-4'
+                ? 'rounded-md bg-[#0d2d49] px-4 py-2 text-white shadow-sm'
+                : 'rounded-md px-4 py-2 text-slate-500 transition hover:bg-white hover:text-[#0d2d49]'
             }
           >
             {period.label}
@@ -315,66 +284,29 @@ function PeriodLinks({
 }
 
 function MetricCard({
+  accent = false,
   description,
   label,
   value,
 }: {
+  accent?: boolean
   description: string
   label: string
   value: string
 }) {
   return (
-    <div className="flex min-h-36 flex-col rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+    <div className="flex min-h-28 flex-col rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      {accent && <span className="mb-3 h-0.5 w-6 rounded-full bg-sky-500" />}
+      <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">
         {label}
       </p>
-      <p className="mt-2 text-xl font-bold text-gray-950">{value}</p>
-      <p className="mt-3 text-xs leading-snug text-gray-500">
+      <p className="mt-2 font-serif text-4xl font-bold leading-none text-[#0b263f]">
+        {value}
+      </p>
+      <p className="mt-3 text-xs leading-snug text-slate-500">
         {description}
       </p>
     </div>
-  )
-}
-
-function DailyStatsPanel({
-  dailyStats,
-}: {
-  dailyStats: AdminAnalyticsOverview['dailyStats']
-}) {
-  return (
-    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div className="border-b border-gray-200 px-5 py-4">
-        <h3 className="text-base font-semibold text-gray-950">
-          Daglig utvikling
-        </h3>
-      </div>
-      <div className="max-h-[32rem] overflow-auto">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-            <tr>
-              <th className="px-5 py-3">Dato</th>
-              <th className="px-5 py-3 text-right">Visninger</th>
-              <th className="px-5 py-3 text-right">Klikk</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
-            {dailyStats.map((day) => (
-              <tr key={day.date}>
-                <td className="px-5 py-3 text-gray-700">
-                  {formatDate(day.date)}
-                </td>
-                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
-                  {formatNumber(day.impressions)}
-                </td>
-                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
-                  {formatNumber(day.clicks)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
   )
 }
 
@@ -387,21 +319,27 @@ function DealerStatsPanel({
   carGroups: CarGroupOption[]
   filters: AdminAnalyticsOverview['filters']
 }) {
+  const sortedLabel = getSortLabel(filters.sort)
+  const maxImpressions = Math.max(
+    1,
+    ...dealerStats.map((dealer) => dealer.impressions)
+  )
+
   return (
-    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between gap-4 border-b border-gray-200 px-5 py-4">
-        <h3 className="text-base font-semibold text-gray-950">
+    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
+        <h3 className="text-base font-bold text-[#0b263f]">
           Forhandlere
         </h3>
-        <span className="text-sm font-medium text-gray-500">
-          {dealerStats.length} forhandler
-          {dealerStats.length === 1 ? '' : 'e'}
+        <span className="text-sm font-medium text-slate-500">
+          Sortert etter {sortedLabel}
         </span>
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-[58rem] divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <table className="w-full min-w-[58rem] divide-y divide-slate-200 text-sm">
+          <thead className="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
             <tr>
+              <th className="px-5 py-3">#</th>
               <SortableHeader
                 filters={filters}
                 label="Firma"
@@ -412,9 +350,7 @@ function DealerStatsPanel({
                 label="Gruppe"
                 sortKey="group"
               />
-              <th className="px-5 py-3">OrgId</th>
               <SortableHeader
-                align="right"
                 filters={filters}
                 label="Visninger"
                 sortKey="impressions"
@@ -435,31 +371,57 @@ function DealerStatsPanel({
               <th className="px-5 py-3 text-right">Annonser</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
-            {dealerStats.map((dealer) => (
+          <tbody className="divide-y divide-slate-100 bg-white">
+            {dealerStats.map((dealer, index) => (
               <tr key={dealer.dealerId}>
-                <td className="px-5 py-3 font-medium text-gray-950">
+                <td className="px-5 py-3 font-medium tabular-nums text-slate-400">
+                  {index + 1}
+                </td>
+                <td className="px-5 py-3 font-bold text-slate-900">
                   {dealer.name}
                 </td>
-                <td className="px-5 py-3 text-gray-700">
-                  {getCarGroupName(carGroups, dealer.groupSlug)}
+                <td className="px-5 py-3">
+                  <span
+                    className={`rounded-full px-3 py-1 text-[11px] font-bold ${
+                      dealer.groupSlug === 'bilbyen'
+                        ? 'bg-sky-100 text-[#17486a]'
+                        : 'bg-emerald-100 text-emerald-700'
+                    }`}
+                  >
+                    {getCarGroupName(carGroups, dealer.groupSlug)}
+                  </span>
                 </td>
-                <td className="px-5 py-3 font-mono text-xs text-gray-700">
-                  {dealer.orgId}
+                <td className="px-5 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 w-full min-w-24 max-w-40 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-sky-500"
+                        style={{
+                          width: `${Math.round(
+                            (dealer.impressions / maxImpressions) * 100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="font-bold tabular-nums text-[#0b263f]">
+                      {formatNumber(dealer.impressions)}
+                    </span>
+                  </div>
                 </td>
-                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
-                  {formatNumber(dealer.impressions)}
-                </td>
-                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
+                <td className="px-5 py-3 text-right font-semibold tabular-nums text-[#0b263f]">
                   {formatNumber(dealer.clicks)}
                 </td>
-                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
-                  {formatPercent(dealer.clickRate)}
+                <td
+                  className={`px-5 py-3 text-right font-bold tabular-nums ${
+                    dealer.clickRate > 0 ? 'text-teal-600' : 'text-slate-400'
+                  }`}
+                >
+                  {dealer.clickRate > 0 ? formatPercent(dealer.clickRate) : '0 %'}
                 </td>
-                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
+                <td className="px-5 py-3 text-right tabular-nums text-slate-700">
                   {formatNumber(dealer.uniqueSessions)}
                 </td>
-                <td className="px-5 py-3 text-right tabular-nums text-gray-950">
+                <td className="px-5 py-3 text-right tabular-nums text-slate-700">
                   {formatNumber(dealer.activeAds)}
                 </td>
               </tr>
@@ -492,10 +454,12 @@ function SortableHeader({
           sort: sortKey,
           direction: nextDirection,
         })}
-        className="inline-flex items-center gap-1 transition hover:text-gray-950 hover:underline hover:underline-offset-4"
+        className="inline-flex items-center gap-1 transition hover:text-[#0b263f] hover:underline hover:underline-offset-4"
       >
         {label}
-        {isActive && <span>{filters.direction === 'asc' ? '↑' : '↓'}</span>}
+        {isActive && (
+          <span aria-hidden="true">{filters.direction === 'asc' ? '↑' : '↓'}</span>
+        )}
       </Link>
     </th>
   )
@@ -1189,6 +1153,18 @@ function getNextSortDirection(
   return sortKey === 'name' || sortKey === 'group' ? 'asc' : 'desc'
 }
 
+function getSortLabel(sort: AdminAnalyticsSortKey): string {
+  const labels: Record<AdminAnalyticsSortKey, string> = {
+    clickRate: 'klikkrate',
+    clicks: 'klikk',
+    group: 'gruppe',
+    impressions: 'visninger',
+    name: 'firma',
+  }
+
+  return labels[sort]
+}
+
 function formatNumber(value: number): string {
   return value.toLocaleString('nb-NO')
 }
@@ -1198,13 +1174,6 @@ function formatPercent(value: number): string {
     maximumFractionDigits: 1,
     style: 'percent',
   })
-}
-
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('nb-NO', {
-    day: '2-digit',
-    month: '2-digit',
-  }).format(new Date(`${value}T00:00:00`))
 }
 
 function getCarGroupName(

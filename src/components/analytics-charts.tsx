@@ -54,10 +54,10 @@ interface RankingBarChartProps {
 
 const impressionColor = 'rgb(2, 132, 199)'
 const impressionFill = 'rgba(2, 132, 199, 0.12)'
-const clickColor = 'rgb(22, 163, 74)'
-const clickFill = 'rgba(22, 163, 74, 0.12)'
+const clickColor = 'rgb(255, 88, 64)'
+const clickFill = 'rgba(255, 88, 64, 0.08)'
 const barColor = 'rgba(15, 23, 42, 0.82)'
-const gridColor = 'rgba(148, 163, 184, 0.22)'
+const gridColor = 'rgba(148, 163, 184, 0.18)'
 
 export function TrafficTrendChart({
   ariaLabel,
@@ -127,11 +127,12 @@ function getTrafficTrendConfig(
           backgroundColor: impressionFill,
           borderColor: impressionColor,
           borderWidth: 2,
-          pointBackgroundColor: impressionColor,
-          pointBorderWidth: 0,
+          pointBackgroundColor: 'white',
+          pointBorderColor: impressionColor,
+          pointBorderWidth: 1.5,
           pointHitRadius: 8,
-          pointRadius: 2,
-          tension: 0.24,
+          pointRadius: 2.5,
+          tension: 0.25,
         },
         {
           label: 'Klikk',
@@ -139,11 +140,12 @@ function getTrafficTrendConfig(
           backgroundColor: clickFill,
           borderColor: clickColor,
           borderWidth: 2,
-          pointBackgroundColor: clickColor,
-          pointBorderWidth: 0,
+          pointBackgroundColor: 'white',
+          pointBorderColor: clickColor,
+          pointBorderWidth: 1.5,
           pointHitRadius: 8,
-          pointRadius: 2,
-          tension: 0.24,
+          pointRadius: 2.5,
+          tension: 0.25,
         },
       ],
     },
@@ -156,7 +158,7 @@ function getTrafficTrendConfig(
       },
       plugins: {
         legend: {
-          align: 'start',
+          align: 'end',
           labels: {
             boxHeight: 8,
             boxWidth: 8,
@@ -178,7 +180,7 @@ function getTrafficTrendConfig(
             display: false,
           },
           ticks: {
-            color: 'rgb(107, 114, 128)',
+            display: false,
             maxRotation: 0,
           },
         },
@@ -188,7 +190,7 @@ function getTrafficTrendConfig(
             color: gridColor,
           },
           ticks: {
-            color: 'rgb(107, 114, 128)',
+            display: false,
             precision: 0,
           },
         },
