@@ -16,6 +16,7 @@ interface CarCarouselProps {
   href: string
   cars: Car[]
   groupSlug: string
+  trackAnalytics?: boolean
 }
 
 export default function CarCarousel({
@@ -24,6 +25,7 @@ export default function CarCarousel({
   href,
   cars,
   groupSlug,
+  trackAnalytics = true,
 }: CarCarouselProps) {
   const [swiper, setSwiper] = useState<SwiperType | null>(null)
   const [isPlaying, setIsPlaying] = useState(true)
@@ -98,6 +100,7 @@ export default function CarCarousel({
                       carouselKey={carouselKey}
                       groupSlug={groupSlug}
                       position={index + 1}
+                      trackAnalytics={trackAnalytics}
                     />
                   </SwiperSlide>
                 ))}
@@ -156,18 +159,20 @@ function TrackedCarouselCard({
   carouselKey,
   groupSlug,
   position,
+  trackAnalytics,
 }: {
   car: Car
   carouselKey: string
   groupSlug: string
   position: number
+  trackAnalytics: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const hasTracked = useRef(false)
 
   useEffect(() => {
     const element = ref.current
-    if (!element || hasTracked.current) return
+    if (!trackAnalytics || !element || hasTracked.current) return
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -190,17 +195,21 @@ function TrackedCarouselCard({
     observer.observe(element)
 
     return () => observer.disconnect()
-  }, [car, carouselKey, groupSlug, position])
+  }, [car, carouselKey, groupSlug, position, trackAnalytics])
 
   return (
     <div ref={ref} className="flex h-full w-full">
       <CarCard
         car={car}
-        analytics={{
-          groupSlug,
-          carouselKey,
-          position,
-        }}
+        analytics={
+          trackAnalytics
+            ? {
+                groupSlug,
+                carouselKey,
+                position,
+              }
+            : undefined
+        }
       />
     </div>
   )
