@@ -23,11 +23,11 @@ export default function DealerLoginPage({
         <div>
           <Link
             href="/"
-            className="text-sm font-medium text-sky-700 hover:text-sky-900 hover:underline"
+            className="text-sm font-medium text-[#0d2d49] hover:text-[#123a5e] hover:underline"
           >
             Til forsiden
           </Link>
-          <h1 className="mt-6 text-2xl font-bold text-gray-950">
+          <h1 className="mt-6 font-serif text-2xl font-bold leading-none text-[#0b263f]">
             Forhandler
           </h1>
         </div>
@@ -56,7 +56,7 @@ function LoginForm({ error }: { error?: string }) {
   return (
     <form
       action={loginDealer}
-      className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
+      className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
     >
       <div className="flex flex-col gap-4">
         {error && ERROR_MESSAGES[error] && (
@@ -65,31 +65,31 @@ function LoginForm({ error }: { error?: string }) {
           </p>
         )}
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
+        <label className="flex flex-col gap-1.5 font-serif text-sm font-bold text-[#0b263f]">
           E-post
           <input
             name="email"
             type="email"
             autoComplete="email"
             required
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 font-sans text-sm font-normal text-slate-950 shadow-sm focus:border-[#0d2d49] focus:outline-none focus:ring-2 focus:ring-sky-100"
           />
         </label>
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-800">
+        <label className="flex flex-col gap-1.5 font-serif text-sm font-bold text-[#0b263f]">
           Passord
           <input
             name="password"
             type="password"
             autoComplete="current-password"
             required
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 font-sans text-sm font-normal text-slate-950 shadow-sm focus:border-[#0d2d49] focus:outline-none focus:ring-2 focus:ring-sky-100"
           />
         </label>
 
         <button
           type="submit"
-          className="rounded-md bg-gray-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
+          className="rounded-md bg-[#0d2d49] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-[#123a5e]"
         >
           Logg inn
         </button>
