@@ -5,6 +5,7 @@ import { trackCarEvent } from '@/lib/analytics-client'
 
 interface CarCardProps {
   car: Car
+  href?: string
   analytics?: {
     groupSlug: string
     pagePath?: string
@@ -13,7 +14,7 @@ interface CarCardProps {
   }
 }
 
-export default function CarCard({ car, analytics }: CarCardProps) {
+export default function CarCard({ car, href, analytics }: CarCardProps) {
   const imageUrl = car.imageUrl
     ? car.imageUrl.replace('/dynamic/default/', '/dynamic/480x360c/')
     : null
@@ -30,7 +31,7 @@ export default function CarCard({ car, analytics }: CarCardProps) {
 
   return (
     <a
-      href={car.adUrl ?? '#'}
+      href={href ?? car.adUrl ?? '#'}
       target="_blank"
       rel="noopener noreferrer"
       onClick={trackClick}

@@ -1,4 +1,4 @@
-import { callSupabaseRpc } from '@/lib/supabase-server'
+import { recordCarAnalyticsEvent } from '@/lib/analytics-server'
 import {
   getDealersForCarGroup,
   isCarGroupSlug,
@@ -41,25 +41,14 @@ export async function POST(request: Request) {
     const validated = validateAnalyticsPayload(payload)
     await validateDealerGroup(validated.car.orgId, validated.groupSlug)
 
-    await callSupabaseRpc({
-      functionName: 'record_analytics_event',
-      body: {
-        p_event_type: validated.eventType,
-        p_finn_ad_id: validated.car.id,
-        p_org_id: validated.car.orgId,
-        p_title: validated.car.title,
-        p_group_slug: validated.groupSlug,
-        p_page_path: validated.pagePath,
-        p_carousel_key: validated.carouselKey ?? null,
-        p_position: validated.position ?? null,
-        p_session_id_hash: await hashSessionId(validated.sessionId),
-        p_ad_url: validated.car.adUrl ?? null,
-        p_image_url: validated.car.imageUrl ?? null,
-        p_make: validated.car.make ?? null,
-        p_model: validated.car.model ?? null,
-        p_year: validated.car.year ?? null,
-        p_price: validated.car.price ?? null,
-      },
+    await recordCarAnalyticsEvent({
+      eventType: validated.eventType,
+      car: validated.car,
+      groupSlug: validated.groupSlug,
+      pagePath: validated.pagePath,
+      carouselKey: validated.carouselKey,
+      position: validated.position,
+      sessionId: validated.sessionId,
     })
 
     return new Response(null, { status: 204 })
@@ -179,16 +168,6 @@ async function validateDealerGroup(orgId: string, groupSlug: CarGroupSlug) {
   if (!dealers.some((dealer) => dealer.orgId === orgId)) {
     throw new ValidationError('Dealer does not belong to group')
   }
-}
-
-async function hashSessionId(sessionId?: string): Promise<string | null> {
-  if (!sessionId) return null
-
-  const bytes = new TextEncoder().encode(sessionId)
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
-  return [...new Uint8Array(digest)]
-    .map((value) => value.toString(16).padStart(2, '0'))
-    .join('')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

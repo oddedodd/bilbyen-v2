@@ -5,6 +5,10 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import type { Swiper as SwiperType } from 'swiper'
 import { A11y, Autoplay } from 'swiper/modules'
 import { Swiper, SwiperSlide } from 'swiper/react'
+import {
+  getEmbedClickHref,
+  type EmbedSlug,
+} from '@/lib/embed-routes'
 import { trackCarEvent } from '@/lib/analytics-client'
 import type { Car } from '@/lib/types'
 import CarCard from './CarCard'
@@ -16,6 +20,7 @@ interface CarCarouselProps {
   href: string
   cars: Car[]
   groupSlug: string
+  embedSlug?: EmbedSlug
   trackAnalytics?: boolean
 }
 
@@ -25,7 +30,8 @@ export default function CarCarousel({
   href,
   cars,
   groupSlug,
-  trackAnalytics = true,
+  embedSlug,
+  trackAnalytics = false,
 }: CarCarouselProps) {
   const [swiper, setSwiper] = useState<SwiperType | null>(null)
   const [isPlaying, setIsPlaying] = useState(true)
@@ -74,7 +80,16 @@ export default function CarCarousel({
           </div>
         ) : (
           <div className="relative">
-            <Suspense fallback={<CarouselFallback cars={visibleCars} />}>
+            <Suspense
+              fallback={
+                <CarouselFallback
+                  cars={visibleCars}
+                  carouselKey={carouselKey}
+                  embedSlug={embedSlug}
+                  trackAnalytics={trackAnalytics}
+                />
+              }
+            >
               <Swiper
                 modules={[A11y, Autoplay]}
                 onSwiper={setSwiper}
@@ -98,6 +113,7 @@ export default function CarCarousel({
                     <TrackedCarouselCard
                       car={car}
                       carouselKey={carouselKey}
+                      embedSlug={embedSlug}
                       groupSlug={groupSlug}
                       position={index + 1}
                       trackAnalytics={trackAnalytics}
@@ -144,11 +160,34 @@ export default function CarCarousel({
   )
 }
 
-function CarouselFallback({ cars }: { cars: Car[] }) {
+function CarouselFallback({
+  cars,
+  carouselKey,
+  embedSlug,
+  trackAnalytics,
+}: {
+  cars: Car[]
+  carouselKey: string
+  embedSlug?: EmbedSlug
+  trackAnalytics: boolean
+}) {
   return (
     <div className="-mx-4 grid grid-cols-1 gap-4 px-4 pb-4 sm:grid-cols-3">
-      {cars.slice(0, 3).map((car) => (
-        <CarCard key={car.id} car={car} />
+      {cars.slice(0, 3).map((car, index) => (
+        <CarCard
+          key={car.id}
+          car={car}
+          href={
+            trackAnalytics && embedSlug
+              ? getEmbedClickHref({
+                  carId: car.id,
+                  carouselKey,
+                  embedSlug,
+                  position: index + 1,
+                })
+              : undefined
+          }
+        />
       ))}
     </div>
   )
@@ -157,12 +196,14 @@ function CarouselFallback({ cars }: { cars: Car[] }) {
 function TrackedCarouselCard({
   car,
   carouselKey,
+  embedSlug,
   groupSlug,
   position,
   trackAnalytics,
 }: {
   car: Car
   carouselKey: string
+  embedSlug?: EmbedSlug
   groupSlug: string
   position: number
   trackAnalytics: boolean
@@ -201,13 +242,14 @@ function TrackedCarouselCard({
     <div ref={ref} className="flex h-full w-full">
       <CarCard
         car={car}
-        analytics={
-          trackAnalytics
-            ? {
-                groupSlug,
+        href={
+          trackAnalytics && embedSlug
+            ? getEmbedClickHref({
+                carId: car.id,
                 carouselKey,
+                embedSlug,
                 position,
-              }
+              })
             : undefined
         }
       />
