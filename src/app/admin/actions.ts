@@ -1,14 +1,24 @@
 'use server'
 
 import type { User } from '@supabase/supabase-js'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import {
   ensureAdminAccess,
   isBootstrapAdminEmail,
   requireAdminUser,
 } from '@/lib/admin-auth'
-import { normalizeCarGroupSlug } from '@/lib/car-groups'
+import {
+  isCarGroupSlug,
+  normalizeCarGroupSlug,
+  type CarGroupSlug,
+} from '@/lib/car-groups'
+import {
+  FINN_CARS_CACHE_TAG,
+  getDealersGroupCacheTag,
+  getFinnCarsGroupCacheTag,
+  getFinnOrgCacheTag,
+} from '@/lib/cache-tags'
 import {
   normalizeDealerRole,
   slugifyDealerName,
@@ -265,7 +275,10 @@ export async function createDealer(
     return actionError('Kunne ikke lagre firma.')
   }
 
-  revalidatePath('/admin')
+  refreshDealerData({
+    groupSlugs: [dealer.previousGroupSlug, dealer.group_slug],
+    orgId: dealer.org_id,
+  })
 
   return actionSuccess('Forhandleren ble lagret.')
 }
@@ -460,6 +473,16 @@ export async function updateDealerGroup(
   }
 
   const supabase = createSupabaseAdminClient()
+  const { data: existingDealer, error: existingDealerError } = await supabase
+    .from('dealers')
+    .select('group_slug, org_id')
+    .eq('id', dealerId)
+    .single()
+
+  if (existingDealerError || !existingDealer) {
+    return actionError('Kunne ikke finne forhandleren.')
+  }
+
   const { error } = await supabase
     .from('dealers')
     .update({ group_slug: groupSlug })
@@ -469,7 +492,10 @@ export async function updateDealerGroup(
     return actionError('Kunne ikke lagre firma.')
   }
 
-  revalidatePath('/admin')
+  refreshDealerData({
+    groupSlugs: [existingDealer.group_slug, groupSlug],
+    orgId: existingDealer.org_id,
+  })
 
   return actionSuccess('Gruppen ble oppdatert.')
 }
@@ -481,7 +507,7 @@ async function upsertDealer({
 }: {
   name: string
   orgId: string
-  groupSlug: string
+  groupSlug: CarGroupSlug
 }) {
   const supabase = createSupabaseAdminClient()
   const { data: existingDealer, error: existingError } = await supabase
@@ -495,15 +521,25 @@ async function upsertDealer({
   }
 
   if (existingDealer) {
-    return supabase
+    const { data, error } = await supabase
       .from('dealers')
       .update({ name, group_slug: groupSlug })
       .eq('id', existingDealer.id)
       .select('id, name, org_id, slug, group_slug')
       .single()
+
+    return {
+      data: data
+        ? {
+            ...data,
+            previousGroupSlug: existingDealer.group_slug as CarGroupSlug,
+          }
+        : null,
+      error,
+    }
   }
 
-  return supabase
+  const { data, error } = await supabase
     .from('dealers')
     .insert({
       name,
@@ -513,6 +549,51 @@ async function upsertDealer({
     })
     .select('id, name, org_id, slug, group_slug')
     .single()
+
+  return {
+    data: data
+      ? {
+          ...data,
+          previousGroupSlug: null,
+        }
+      : null,
+    error,
+  }
+}
+
+function refreshDealerData({
+  groupSlugs,
+  orgId,
+}: {
+  groupSlugs: Array<CarGroupSlug | null | undefined>
+  orgId: string
+}) {
+  const validGroupSlugs = groupSlugs.filter(
+    (groupSlug): groupSlug is CarGroupSlug =>
+      typeof groupSlug === 'string' && isCarGroupSlug(groupSlug)
+  )
+  const uniqueGroupSlugs = [...new Set(validGroupSlugs)]
+
+  updateTag(FINN_CARS_CACHE_TAG)
+  updateTag(getFinnOrgCacheTag(orgId))
+
+  for (const groupSlug of uniqueGroupSlugs) {
+    updateTag(getFinnCarsGroupCacheTag(groupSlug))
+    updateTag(getDealersGroupCacheTag(groupSlug))
+    revalidatePath(`/${groupSlug}`)
+    revalidatePath(getEmbedPathForGroup(groupSlug))
+  }
+
+  revalidatePath('/')
+  revalidatePath('/admin')
+  revalidatePath('/admin/annonser')
+  revalidatePath('/admin/forhandlere')
+}
+
+function getEmbedPathForGroup(groupSlug: CarGroupSlug) {
+  return groupSlug === 'bilbyen'
+    ? '/embed/bilbyen-namsos'
+    : '/embed/bruktbil-trondelag'
 }
 
 async function createAvailableDealerSlug(

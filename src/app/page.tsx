@@ -1,3 +1,4 @@
+import { cacheLife, cacheTag } from 'next/cache'
 import CarCarousel from '@/components/CarCarousel'
 import {
   fetchBilbyenCars,
@@ -5,8 +6,22 @@ import {
 } from '@/lib/finn-api'
 import { prepareCarouselCars } from '@/lib/car-carousel'
 import { carGroups } from '@/lib/car-groups'
+import {
+  CAR_DATA_CACHE_LIFE,
+  FINN_CARS_CACHE_TAG,
+  getDealersGroupCacheTag,
+  getFinnCarsGroupCacheTag,
+} from '@/lib/cache-tags'
 
 export default async function Page() {
+  'use cache'
+  cacheLife(CAR_DATA_CACHE_LIFE)
+  cacheTag(FINN_CARS_CACHE_TAG)
+  cacheTag(getFinnCarsGroupCacheTag('bilbyen'))
+  cacheTag(getFinnCarsGroupCacheTag('bruktbil-trondelag'))
+  cacheTag(getDealersGroupCacheTag('bilbyen'))
+  cacheTag(getDealersGroupCacheTag('bruktbil-trondelag'))
+
   const [bilbyenCars, bruktbilTrondelagCars] = await Promise.all([
     fetchBilbyenCars(),
     fetchBruktbilTrondelagCars(),

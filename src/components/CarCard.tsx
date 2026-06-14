@@ -6,6 +6,7 @@ import { trackCarEvent } from '@/lib/analytics-client'
 interface CarCardProps {
   car: Car
   href?: string
+  variant?: 'default' | 'embed'
   analytics?: {
     groupSlug: string
     pagePath?: string
@@ -14,10 +15,16 @@ interface CarCardProps {
   }
 }
 
-export default function CarCard({ car, href, analytics }: CarCardProps) {
+export default function CarCard({
+  car,
+  href,
+  variant = 'default',
+  analytics,
+}: CarCardProps) {
   const imageUrl = car.imageUrl
     ? car.imageUrl.replace('/dynamic/default/', '/dynamic/480x360c/')
     : null
+  const isEmbed = variant === 'embed'
 
   function trackClick() {
     if (!analytics) return
@@ -35,9 +42,19 @@ export default function CarCard({ car, href, analytics }: CarCardProps) {
       target="_blank"
       rel="noopener noreferrer"
       onClick={trackClick}
-      className="group flex h-full min-h-[23rem] w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:border-gray-300 hover:shadow-md sm:min-h-[22rem] lg:min-h-[27rem]"
+      className={
+        isEmbed
+          ? 'group flex h-[25rem] w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:border-slate-300 hover:shadow-md'
+          : 'group flex h-full min-h-[23rem] w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:border-gray-300 hover:shadow-md sm:min-h-[22rem] lg:min-h-[27rem]'
+      }
     >
-      <div className="relative h-48 w-full shrink-0 bg-gray-100 sm:h-40 md:h-44 lg:h-64">
+      <div
+        className={
+          isEmbed
+            ? 'relative h-44 w-full shrink-0 bg-slate-100 sm:h-48'
+            : 'relative h-48 w-full shrink-0 bg-gray-100 sm:h-40 md:h-44 lg:h-64'
+        }
+      >
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -54,40 +71,98 @@ export default function CarCard({ car, href, analytics }: CarCardProps) {
           </div>
         )}
         {car.fuel && (
-          <span className="absolute top-2 right-2 bg-gray-950/75 text-white text-xs px-2 py-0.5 rounded-full">
+          <span
+            className={
+              isEmbed
+                ? 'absolute right-3 top-3 rounded-full bg-gray-950/75 px-3 py-1.5 text-sm font-bold text-white'
+                : 'absolute top-2 right-2 bg-gray-950/75 text-white text-xs px-2 py-0.5 rounded-full'
+            }
+          >
             {car.fuel}
           </span>
         )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-1.5 p-4">
-        <h3 className="font-semibold text-gray-950 text-sm leading-tight line-clamp-2">
+      <div
+        className={
+          isEmbed
+            ? 'flex flex-1 flex-col gap-1.5 px-4 py-3'
+            : 'flex flex-1 flex-col gap-1.5 p-4'
+        }
+      >
+        <h3
+          className={
+            isEmbed
+              ? 'line-clamp-2 text-xl font-extrabold leading-tight text-gray-950'
+              : 'font-semibold text-gray-950 text-sm leading-tight line-clamp-2'
+          }
+        >
           {car.title}
         </h3>
         {car.dealer && (
-          <p className="text-xs font-medium text-sky-700 line-clamp-1">
+          <p
+            className={
+              isEmbed
+                ? 'line-clamp-1 text-base font-medium leading-snug text-[#ad2430]'
+                : 'text-xs font-medium text-sky-700 line-clamp-1'
+            }
+          >
             {car.dealer}
           </p>
         )}
         {car.modelSpec && (
-          <p className="text-xs text-gray-500 line-clamp-1">
+          <p
+            className={
+              isEmbed
+                ? 'line-clamp-1 text-sm leading-snug text-gray-500'
+                : 'text-xs text-gray-500 line-clamp-1'
+            }
+          >
             {car.modelSpec}
           </p>
         )}
 
-        <div className="mt-auto pt-3 flex flex-col gap-1.5">
+        <div
+          className={
+            isEmbed
+              ? 'mt-auto flex flex-col gap-2 pt-2'
+              : 'mt-auto pt-3 flex flex-col gap-1.5'
+          }
+        >
           {car.price != null && (
-            <p className="text-lg font-bold text-gray-950">
+            <p
+              className={
+                isEmbed
+                  ? 'text-[1.4rem] font-extrabold leading-none text-gray-950'
+                  : 'text-lg font-bold text-gray-950'
+              }
+            >
               {car.price.toLocaleString('nb-NO')} kr
             </p>
           )}
 
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+          {isEmbed && <div className="h-px w-full bg-slate-200" />}
+
+          <div
+            className={
+              isEmbed
+                ? 'flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500'
+                : 'flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500'
+            }
+          >
             {car.year != null && <span>{car.year}</span>}
             {car.mileage != null && (
-              <span>{car.mileage.toLocaleString('nb-NO')} km</span>
+              <>
+                {isEmbed && <span className="text-slate-300">·</span>}
+                <span>{car.mileage.toLocaleString('nb-NO')} km</span>
+              </>
             )}
-            {car.location && <span>{car.location}</span>}
+            {car.location && (
+              <>
+                {isEmbed && <span className="text-slate-300">·</span>}
+                <span>{car.location}</span>
+              </>
+            )}
           </div>
         </div>
       </div>

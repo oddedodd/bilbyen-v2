@@ -1,4 +1,8 @@
-import { cacheLife } from 'next/cache'
+import { cacheLife, cacheTag } from 'next/cache'
+import {
+  CAR_DATA_CACHE_LIFE,
+  getDealersGroupCacheTag,
+} from './cache-tags'
 import { fetchSupabaseRest } from './supabase-server'
 
 export type CarGroupSlug = 'bilbyen' | 'bruktbil-trondelag'
@@ -64,7 +68,8 @@ export async function getDealersForCarGroup(
   groupSlug: CarGroupSlug
 ): Promise<DealerConfig[]> {
   'use cache'
-  cacheLife('minutes')
+  cacheLife(CAR_DATA_CACHE_LIFE)
+  cacheTag(getDealersGroupCacheTag(groupSlug))
 
   const dealers = await fetchSupabaseRest<DealerRow[]>({
     path: `/dealers?select=id,name,org_id,group_slug&group_slug=eq.${groupSlug}&order=name.asc`,

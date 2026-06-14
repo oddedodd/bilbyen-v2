@@ -1,5 +1,11 @@
 import { XMLParser } from 'fast-xml-parser'
-import { cacheLife } from 'next/cache'
+import { cacheLife, cacheTag } from 'next/cache'
+import {
+  CAR_DATA_CACHE_LIFE,
+  FINN_CARS_CACHE_TAG,
+  getFinnCarsGroupCacheTag,
+  getFinnOrgCacheTag,
+} from './cache-tags'
 import { getDealersForCarGroup, type CarGroupSlug } from './car-groups'
 import type { Car } from './types'
 
@@ -7,7 +13,8 @@ const FINN_API_BASE = 'https://cache.api.finn.no'
 
 export async function fetchFinnCars(): Promise<Car[]> {
   'use cache'
-  cacheLife('minutes')
+  cacheLife(CAR_DATA_CACHE_LIFE)
+  cacheTag(FINN_CARS_CACHE_TAG)
 
   const orgId = process.env.FINN_ORGID
 
@@ -15,20 +22,16 @@ export async function fetchFinnCars(): Promise<Car[]> {
     throw new Error('FINN_ORGID must be set in environment')
   }
 
+  cacheTag(getFinnOrgCacheTag(orgId))
+
   return fetchFinnCarsByOrgId(orgId)
 }
 
 export async function fetchBilbyenCars(): Promise<Car[]> {
-  'use cache'
-  cacheLife('minutes')
-
   return fetchFinnCarsForGroup('bilbyen')
 }
 
 export async function fetchBruktbilTrondelagCars(): Promise<Car[]> {
-  'use cache'
-  cacheLife('minutes')
-
   return fetchFinnCarsForGroup('bruktbil-trondelag')
 }
 
@@ -36,7 +39,9 @@ export async function fetchFinnCarsForGroup(
   groupSlug: CarGroupSlug
 ): Promise<Car[]> {
   'use cache'
-  cacheLife('minutes')
+  cacheLife(CAR_DATA_CACHE_LIFE)
+  cacheTag(FINN_CARS_CACHE_TAG)
+  cacheTag(getFinnCarsGroupCacheTag(groupSlug))
 
   const dealers = await getDealersForCarGroup(groupSlug)
   const carsByDealer = await Promise.all(
@@ -48,7 +53,9 @@ export async function fetchFinnCarsForGroup(
 
 export async function fetchFinnCarsByOrgId(orgId: string): Promise<Car[]> {
   'use cache'
-  cacheLife('minutes')
+  cacheLife(CAR_DATA_CACHE_LIFE)
+  cacheTag(FINN_CARS_CACHE_TAG)
+  cacheTag(getFinnOrgCacheTag(orgId))
 
   const apiKey = process.env.FINN_API_KEY
 
