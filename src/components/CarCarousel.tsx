@@ -5,6 +5,10 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import type { Swiper as SwiperType } from 'swiper'
 import { A11y, Autoplay } from 'swiper/modules'
 import { Swiper, SwiperSlide } from 'swiper/react'
+import {
+  getEmbedClickHref,
+  type EmbedSlug,
+} from '@/lib/embed-routes'
 import { trackCarEvent } from '@/lib/analytics-client'
 import type { Car } from '@/lib/types'
 import CarCard from './CarCard'
@@ -16,6 +20,12 @@ interface CarCarouselProps {
   href: string
   cars: Car[]
   groupSlug: string
+  embedSlug?: EmbedSlug
+  embedHeader?: {
+    backgroundColor: string
+    logoAlt: string
+    logoSrc: string
+  }
   trackAnalytics?: boolean
 }
 
@@ -25,12 +35,15 @@ export default function CarCarousel({
   href,
   cars,
   groupSlug,
-  trackAnalytics = true,
+  embedSlug,
+  embedHeader,
+  trackAnalytics = false,
 }: CarCarouselProps) {
   const [swiper, setSwiper] = useState<SwiperType | null>(null)
   const [isPlaying, setIsPlaying] = useState(true)
   const visibleCars = cars.slice(0, 20)
   const carouselKey = `carousel:${groupSlug}`
+  const isEmbed = Boolean(embedHeader)
 
   function toggleAutoplay() {
     if (!swiper) return
@@ -46,35 +59,75 @@ export default function CarCarousel({
   }
 
   return (
-    <section className="py-8">
-      <div className="mx-auto max-w-7xl px-4">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-950">
-              {title}
-            </h2>
-            <p className="mt-1 max-w-2xl text-sm text-gray-600">
-              {description}
-            </p>
-          </div>
+    <section className={isEmbed ? 'p-3 sm:p-4' : 'py-8'}>
+      <div
+        className={
+          isEmbed
+            ? 'mx-auto max-w-[940px] overflow-hidden rounded-3xl bg-white shadow-xl ring-1 ring-slate-200'
+            : 'mx-auto max-w-7xl px-4'
+        }
+      >
+        {embedHeader ? (
+          <div
+            className="flex flex-col gap-4 px-6 py-4 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8"
+            style={{ backgroundColor: embedHeader.backgroundColor }}
+          >
+            <div className="flex min-w-0 items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={embedHeader.logoSrc}
+                alt={embedHeader.logoAlt}
+                className="h-auto max-h-7 w-auto max-w-[min(16rem,70vw)] object-contain"
+              />
+            </div>
 
-          <div className="flex items-center">
             <Link
               href={href}
-              className="rounded-lg bg-gray-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
+              className="inline-flex shrink-0 items-center justify-center rounded-full bg-white px-7 py-3 text-base font-extrabold shadow-sm transition hover:bg-white/90"
+              style={{ color: embedHeader.backgroundColor }}
             >
               Se alle
             </Link>
           </div>
-        </div>
+        ) : (
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-950">
+                {title}
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm text-gray-600">
+                {description}
+              </p>
+            </div>
+
+            <div className="flex items-center">
+              <Link
+                href={href}
+                className="rounded-lg bg-gray-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
+              >
+                Se alle
+              </Link>
+            </div>
+          </div>
+        )}
 
         {visibleCars.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-12 text-center text-sm text-gray-500">
+          <div className="m-8 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-12 text-center text-sm text-gray-500">
             Ingen biler funnet.
           </div>
         ) : (
-          <div className="relative">
-            <Suspense fallback={<CarouselFallback cars={visibleCars} />}>
+          <div className={isEmbed ? 'relative px-6 py-7 sm:px-8' : 'relative'}>
+            <Suspense
+              fallback={
+                <CarouselFallback
+                  cars={visibleCars}
+                  carouselKey={carouselKey}
+                  embedSlug={embedSlug}
+                  isEmbed={isEmbed}
+                  trackAnalytics={trackAnalytics}
+                />
+              }
+            >
               <Swiper
                 modules={[A11y, Autoplay]}
                 onSwiper={setSwiper}
@@ -85,20 +138,29 @@ export default function CarCarousel({
                 }}
                 loop={visibleCars.length > 3}
                 slidesPerView={1}
-                spaceBetween={16}
+                spaceBetween={isEmbed ? 16 : 16}
                 breakpoints={{
                   640: {
-                    slidesPerView: 3,
+                    slidesPerView: isEmbed ? 2.35 : 3,
+                  },
+                  900: {
+                    slidesPerView: isEmbed ? 2.75 : 3,
                   },
                 }}
-                className="-mx-4 px-4 pb-4 [&_.swiper-slide]:h-auto [&_.swiper-slide]:self-stretch [&_.swiper-wrapper]:items-stretch"
+                className={
+                  isEmbed
+                    ? 'pb-1 [&_.swiper-slide]:h-auto [&_.swiper-slide]:self-stretch [&_.swiper-wrapper]:items-stretch'
+                    : '-mx-4 px-4 pb-4 [&_.swiper-slide]:h-auto [&_.swiper-slide]:self-stretch [&_.swiper-wrapper]:items-stretch'
+                }
               >
                 {visibleCars.map((car, index) => (
                   <SwiperSlide key={car.id} className="!flex h-auto">
                     <TrackedCarouselCard
                       car={car}
                       carouselKey={carouselKey}
+                      embedSlug={embedSlug}
                       groupSlug={groupSlug}
+                      isEmbed={isEmbed}
                       position={index + 1}
                       trackAnalytics={trackAnalytics}
                     />
@@ -111,11 +173,21 @@ export default function CarCarousel({
               type="button"
               onClick={() => swiper?.slidePrev()}
               aria-label={`Forrige biler i ${title}`}
-              className="absolute left-2 top-1/2 z-10 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-gray-950 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50"
+              className={
+                isEmbed
+                  ? 'absolute left-3 top-1/2 z-10 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white text-xl text-gray-950 shadow-xl ring-1 ring-gray-200 transition hover:bg-gray-50'
+                  : 'absolute left-2 top-1/2 z-10 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-gray-950 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50'
+              }
             >
               <ChevronLeftIcon />
             </button>
-            <div className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-3">
+            <div
+              className={
+                isEmbed
+                  ? 'absolute right-3 top-1/2 z-10 flex -translate-y-[5.25rem] flex-col gap-3'
+                  : 'absolute right-2 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-3'
+              }
+            >
               <button
                 type="button"
                 onClick={toggleAutoplay}
@@ -124,7 +196,11 @@ export default function CarCarousel({
                     ? `Pause automatisk visning av ${title}`
                     : `Start automatisk visning av ${title}`
                 }
-                className="grid h-12 w-12 place-items-center rounded-full bg-white/95 text-gray-950 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50"
+                className={
+                  isEmbed
+                    ? 'grid h-12 w-12 place-items-center rounded-full bg-white text-xl text-gray-950 shadow-xl ring-1 ring-gray-200 transition hover:bg-gray-50'
+                    : 'grid h-12 w-12 place-items-center rounded-full bg-white/95 text-gray-950 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50'
+                }
               >
                 {isPlaying ? <PauseIcon /> : <PlayIcon />}
               </button>
@@ -132,7 +208,11 @@ export default function CarCarousel({
                 type="button"
                 onClick={() => swiper?.slideNext()}
                 aria-label={`Neste biler i ${title}`}
-                className="grid h-12 w-12 place-items-center rounded-full bg-white/95 text-gray-950 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50"
+                className={
+                  isEmbed
+                    ? 'grid h-12 w-12 place-items-center rounded-full bg-white text-xl text-gray-950 shadow-xl ring-1 ring-gray-200 transition hover:bg-gray-50'
+                    : 'grid h-12 w-12 place-items-center rounded-full bg-white/95 text-gray-950 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50'
+                }
               >
                 <ChevronRightIcon />
               </button>
@@ -144,11 +224,43 @@ export default function CarCarousel({
   )
 }
 
-function CarouselFallback({ cars }: { cars: Car[] }) {
+function CarouselFallback({
+  cars,
+  carouselKey,
+  embedSlug,
+  isEmbed,
+  trackAnalytics,
+}: {
+  cars: Car[]
+  carouselKey: string
+  embedSlug?: EmbedSlug
+  isEmbed: boolean
+  trackAnalytics: boolean
+}) {
   return (
-    <div className="-mx-4 grid grid-cols-1 gap-4 px-4 pb-4 sm:grid-cols-3">
-      {cars.slice(0, 3).map((car) => (
-        <CarCard key={car.id} car={car} />
+    <div
+      className={
+        isEmbed
+          ? 'grid grid-cols-1 gap-6 sm:grid-cols-3'
+          : '-mx-4 grid grid-cols-1 gap-4 px-4 pb-4 sm:grid-cols-3'
+      }
+    >
+      {cars.slice(0, 3).map((car, index) => (
+        <CarCard
+          key={car.id}
+          car={car}
+          variant={isEmbed ? 'embed' : 'default'}
+          href={
+            trackAnalytics && embedSlug
+              ? getEmbedClickHref({
+                  carId: car.id,
+                  carouselKey,
+                  embedSlug,
+                  position: index + 1,
+                })
+              : undefined
+          }
+        />
       ))}
     </div>
   )
@@ -157,13 +269,17 @@ function CarouselFallback({ cars }: { cars: Car[] }) {
 function TrackedCarouselCard({
   car,
   carouselKey,
+  embedSlug,
   groupSlug,
+  isEmbed,
   position,
   trackAnalytics,
 }: {
   car: Car
   carouselKey: string
+  embedSlug?: EmbedSlug
   groupSlug: string
+  isEmbed: boolean
   position: number
   trackAnalytics: boolean
 }) {
@@ -201,13 +317,15 @@ function TrackedCarouselCard({
     <div ref={ref} className="flex h-full w-full">
       <CarCard
         car={car}
-        analytics={
-          trackAnalytics
-            ? {
-                groupSlug,
+        variant={isEmbed ? 'embed' : 'default'}
+        href={
+          trackAnalytics && embedSlug
+            ? getEmbedClickHref({
+                carId: car.id,
                 carouselKey,
+                embedSlug,
                 position,
-              }
+              })
             : undefined
         }
       />

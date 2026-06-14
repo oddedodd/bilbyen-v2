@@ -29,6 +29,7 @@ interface CarListProps {
   groupSlug: string
   title?: string
   description?: string
+  trackAnalytics?: boolean
 }
 
 export default function CarList({
@@ -36,6 +37,7 @@ export default function CarList({
   groupSlug,
   title = 'Biler til salgs',
   description,
+  trackAnalytics = false,
 }: CarListProps) {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortKey>('newest')
@@ -224,9 +226,7 @@ export default function CarList({
               <CarCard
                 key={car.id}
                 car={car}
-                analytics={{
-                  groupSlug,
-                }}
+                analytics={trackAnalytics ? { groupSlug } : undefined}
               />
             ))}
           </div>
