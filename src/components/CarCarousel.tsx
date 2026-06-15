@@ -83,7 +83,7 @@ export default function CarCarousel({
 
             <Link
               href={href}
-              className="inline-flex shrink-0 items-center justify-center rounded-full bg-white px-7 py-3 text-base font-extrabold shadow-sm transition hover:bg-white/90"
+              className="hidden shrink-0 items-center justify-center rounded-full bg-white px-7 py-3 text-base font-extrabold shadow-sm transition hover:bg-white/90 sm:inline-flex"
               style={{ color: embedHeader.backgroundColor }}
             >
               Se alle
@@ -100,7 +100,7 @@ export default function CarCarousel({
               </p>
             </div>
 
-            <div className="flex items-center">
+            <div className="hidden items-center sm:flex">
               <Link
                 href={href}
                 className="rounded-lg bg-gray-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
