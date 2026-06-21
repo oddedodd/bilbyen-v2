@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { requireAdminUser } from '@/lib/admin-auth'
-import { carGroupList } from '@/lib/car-groups'
+import { dealerGroupList } from '@/lib/car-groups'
 import {
   getAdminAnalyticsOverview,
   normalizeAdminAnalyticsGroup,
@@ -57,7 +57,7 @@ async function AdminDashboard({ searchParams }: AdminPageProps) {
       direction,
     }),
   ])
-  const carGroups = carGroupList.map((group) => ({
+  const carGroups = dealerGroupList.map((group) => ({
     slug: group.slug,
     name: group.name,
   }))

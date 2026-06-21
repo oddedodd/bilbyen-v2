@@ -10,8 +10,9 @@ import {
 } from '@/lib/admin-auth'
 import {
   isCarGroupSlug,
-  normalizeCarGroupSlug,
+  normalizeDealerGroupSlug,
   type CarGroupSlug,
+  type DealerGroupSlug,
 } from '@/lib/car-groups'
 import {
   FINN_CARS_CACHE_TAG,
@@ -259,7 +260,7 @@ export async function createDealer(
 
   const dealerName = readFormString(formData, 'dealerName')
   const orgId = readFormString(formData, 'orgId')
-  const groupSlug = normalizeCarGroupSlug(formData.get('groupSlug'))
+  const groupSlug = normalizeDealerGroupSlug(formData.get('groupSlug'))
 
   if (!dealerName || !orgId) {
     return actionError('Alle feltene må fylles ut.')
@@ -272,7 +273,7 @@ export async function createDealer(
   })
 
   if (dealerError || !dealer) {
-    return actionError('Kunne ikke lagre firma.')
+    return actionError(getDealerSaveErrorMessage(dealerError, groupSlug))
   }
 
   refreshDealerData({
@@ -466,7 +467,7 @@ export async function updateDealerGroup(
   await requireAdminUser()
 
   const dealerId = readFormString(formData, 'dealerId')
-  const groupSlug = normalizeCarGroupSlug(formData.get('groupSlug'))
+  const groupSlug = normalizeDealerGroupSlug(formData.get('groupSlug'))
 
   if (!dealerId) {
     return actionError('Mangler forhandler.')
@@ -489,7 +490,7 @@ export async function updateDealerGroup(
     .eq('id', dealerId)
 
   if (error) {
-    return actionError('Kunne ikke lagre firma.')
+    return actionError(getDealerSaveErrorMessage(error, groupSlug))
   }
 
   refreshDealerData({
@@ -507,7 +508,7 @@ async function upsertDealer({
 }: {
   name: string
   orgId: string
-  groupSlug: CarGroupSlug
+  groupSlug: DealerGroupSlug
 }) {
   const supabase = createSupabaseAdminClient()
   const { data: existingDealer, error: existingError } = await supabase
@@ -532,7 +533,7 @@ async function upsertDealer({
       data: data
         ? {
             ...data,
-            previousGroupSlug: existingDealer.group_slug as CarGroupSlug,
+            previousGroupSlug: existingDealer.group_slug as DealerGroupSlug,
           }
         : null,
       error,
@@ -565,7 +566,7 @@ function refreshDealerData({
   groupSlugs,
   orgId,
 }: {
-  groupSlugs: Array<CarGroupSlug | null | undefined>
+  groupSlugs: Array<DealerGroupSlug | null | undefined>
   orgId: string
 }) {
   const validGroupSlugs = groupSlugs.filter(
@@ -684,4 +685,45 @@ function actionSuccess(message: string): AdminActionState {
 
 function actionError(message: string): AdminActionState {
   return { ok: false, message }
+}
+
+function getDealerSaveErrorMessage(
+  error: unknown,
+  groupSlug: DealerGroupSlug
+): string {
+  console.error('Unable to save dealer', error)
+
+  if (groupSlug === 'inactive' && isDealerGroupConstraintError(error)) {
+    return 'Databasen mangler støtte for Inaktive. Kjør Supabase-migrasjonen som legger til gruppen før du flytter forhandlere dit.'
+  }
+
+  return 'Kunne ikke lagre firma.'
+}
+
+function isDealerGroupConstraintError(error: unknown): boolean {
+  if (!isErrorRecord(error)) {
+    return false
+  }
+
+  return (
+    error.code === '23514' ||
+    error.message.includes('dealers_group_slug_check') ||
+    (error.details ?? '').includes('dealers_group_slug_check')
+  )
+}
+
+function isErrorRecord(
+  error: unknown
+): error is { code?: string; message: string; details?: string } {
+  if (typeof error !== 'object' || error === null) {
+    return false
+  }
+
+  const record = error as Record<string, unknown>
+
+  return (
+    (typeof record.code === 'string' || record.code === undefined) &&
+    typeof record.message === 'string' &&
+    (typeof record.details === 'string' || record.details === undefined)
+  )
 }

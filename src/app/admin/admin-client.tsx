@@ -8,7 +8,7 @@ import {
   TrafficTrendChart,
   type TrafficTrendPoint,
 } from '@/components/analytics-charts'
-import type { CarGroupSlug } from '@/lib/car-groups'
+import type { DealerGroupSlug } from '@/lib/car-groups'
 import type {
   AdminAnalyticsGroupFilter,
   AdminAnalyticsOverview,
@@ -27,7 +27,7 @@ import {
 } from './actions'
 
 interface CarGroupOption {
-  slug: CarGroupSlug
+  slug: DealerGroupSlug
   name: string
 }
 
@@ -383,9 +383,7 @@ function DealerStatsPanel({
                 <td className="px-5 py-3">
                   <span
                     className={`rounded-full px-3 py-1 text-[11px] font-bold ${
-                      dealer.groupSlug === 'bilbyen'
-                        ? 'bg-sky-100 text-[#17486a]'
-                        : 'bg-emerald-100 text-emerald-700'
+                      getDealerGroupBadgeClassName(dealer.groupSlug)
                     }`}
                   >
                     {getCarGroupName(carGroups, dealer.groupSlug)}
@@ -1178,7 +1176,19 @@ function formatPercent(value: number): string {
 
 function getCarGroupName(
   carGroups: CarGroupOption[],
-  groupSlug: CarGroupSlug
+  groupSlug: DealerGroupSlug
 ): string {
   return carGroups.find((group) => group.slug === groupSlug)?.name ?? groupSlug
+}
+
+function getDealerGroupBadgeClassName(groupSlug: DealerGroupSlug): string {
+  if (groupSlug === 'bilbyen') {
+    return 'bg-sky-100 text-[#17486a]'
+  }
+
+  if (groupSlug === 'inactive') {
+    return 'bg-slate-100 text-slate-600'
+  }
+
+  return 'bg-emerald-100 text-emerald-700'
 }
