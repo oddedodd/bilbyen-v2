@@ -6,12 +6,13 @@ import {
 import { fetchSupabaseRest } from './supabase-server'
 
 export type CarGroupSlug = 'bilbyen' | 'bruktbil-trondelag'
+export type DealerGroupSlug = CarGroupSlug | 'inactive'
 
 export interface DealerConfig {
   id: string
   name: string
   orgId: string
-  groupSlug: CarGroupSlug
+  groupSlug: DealerGroupSlug
 }
 
 export interface CarGroupConfig {
@@ -26,7 +27,7 @@ interface DealerRow {
   id: string
   name: string
   org_id: string
-  group_slug: CarGroupSlug
+  group_slug: DealerGroupSlug
 }
 
 export const carGroups = {
@@ -48,18 +49,42 @@ export const carGroups = {
 
 export const carGroupList = Object.values(carGroups)
 
+export const dealerGroupList = [
+  ...carGroupList,
+  {
+    slug: 'inactive',
+    name: 'Inaktive',
+    shortName: 'Inaktive',
+  },
+] satisfies Array<{
+  slug: DealerGroupSlug
+  name: string
+  shortName: string
+}>
+
 export function isCarGroupSlug(value: string): value is CarGroupSlug {
   return value === 'bilbyen' || value === 'bruktbil-trondelag'
+}
+
+export function isDealerGroupSlug(value: string): value is DealerGroupSlug {
+  return isCarGroupSlug(value) || value === 'inactive'
 }
 
 export function getCarGroupLabel(groupSlug: CarGroupSlug): string {
   return carGroups[groupSlug].name
 }
 
-export function normalizeCarGroupSlug(
+export function getDealerGroupLabel(groupSlug: DealerGroupSlug): string {
+  return (
+    dealerGroupList.find((group) => group.slug === groupSlug)?.name ??
+    groupSlug
+  )
+}
+
+export function normalizeDealerGroupSlug(
   value: FormDataEntryValue | null
-): CarGroupSlug {
-  return typeof value === 'string' && isCarGroupSlug(value)
+): DealerGroupSlug {
+  return typeof value === 'string' && isDealerGroupSlug(value)
     ? value
     : 'bilbyen'
 }

@@ -1,9 +1,9 @@
 import type { User } from '@supabase/supabase-js'
-import { isCarGroupSlug, type CarGroupSlug } from './car-groups'
+import { isDealerGroupSlug, type DealerGroupSlug } from './car-groups'
 import { createSupabaseAdminClient } from './supabase-server'
 
 export type DealerUserRole = 'owner' | 'viewer'
-export type AdminAnalyticsGroupFilter = CarGroupSlug | 'all'
+export type AdminAnalyticsGroupFilter = DealerGroupSlug | 'all'
 export type AdminAnalyticsSortKey =
   | 'name'
   | 'group'
@@ -18,7 +18,7 @@ export interface AdminDealer {
   orgId: string
   name: string
   slug: string
-  groupSlug: CarGroupSlug
+  groupSlug: DealerGroupSlug
   users: AdminDealerUser[]
 }
 
@@ -59,7 +59,7 @@ export interface AdminAnalyticsDealerStats {
   dealerId: string
   name: string
   orgId: string
-  groupSlug: CarGroupSlug
+  groupSlug: DealerGroupSlug
   impressions: number
   clicks: number
   clickRate: number
@@ -79,7 +79,7 @@ interface DealerRow {
   org_id: string
   name: string
   slug: string
-  group_slug: CarGroupSlug
+  group_slug: DealerGroupSlug
 }
 
 interface DealerUserRow {
@@ -433,7 +433,7 @@ export function normalizeDealerRole(value: FormDataEntryValue | null): DealerUse
 export function normalizeAdminAnalyticsGroup(
   value?: string
 ): AdminAnalyticsGroupFilter {
-  return value && isCarGroupSlug(value) ? value : 'all'
+  return value && isDealerGroupSlug(value) ? value : 'all'
 }
 
 export function normalizeAdminAnalyticsPeriod(
