@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
+import { connection } from 'next/server'
 import {
   RankingBarChart,
   TrafficTrendChart,
@@ -53,6 +54,8 @@ function DashboardLoading() {
 async function DealerDashboard({
   searchParams,
 }: DealerDashboardPageProps) {
+  await connection()
+
   const user = await requireDealerUser()
   const resolvedSearchParams = await searchParams
   const dealerId = getSearchParam(resolvedSearchParams, 'dealer')

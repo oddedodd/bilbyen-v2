@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { connection } from 'next/server'
 import { requireAdminUser } from '@/lib/admin-auth'
 import { dealerGroupList } from '@/lib/car-groups'
 import {
@@ -34,6 +35,8 @@ function AdminLoading() {
 }
 
 async function AdminDashboard({ searchParams }: AdminPageProps) {
+  await connection()
+
   const resolvedSearchParams = await searchParams
   const group = normalizeAdminAnalyticsGroup(
     getSearchParam(resolvedSearchParams, 'group')

@@ -51,17 +51,29 @@ interface DealerUserRow {
   }
 }
 
-interface StatRow {
-  dealer_id: string
-  finn_ad_id: string
-  stat_date: string
-  carousel_impressions: number
-  ad_clicks: number
-  cars: {
-    title: string
-    ad_url: string | null
-    last_seen_at: string | null
-  } | null
+interface DashboardAnalyticsRpcResponse {
+  totals?: {
+    impressions?: number
+    clicks?: number
+    activeAds?: number
+  }
+  dailyStats?: DashboardAnalyticsRpcDailyStats[]
+  adStats?: DashboardAnalyticsRpcAdStats[]
+}
+
+interface DashboardAnalyticsRpcDailyStats {
+  date: string
+  impressions: number
+  clicks: number
+}
+
+interface DashboardAnalyticsRpcAdStats {
+  finnAdId: string
+  title: string
+  adUrl?: string | null
+  impressions: number
+  clicks: number
+  lastSeenAt?: string | null
 }
 
 export async function getDealerDashboardStats(
@@ -108,23 +120,19 @@ export async function getDealerDashboardStats(
   }
 
   const fromDate = getDateDaysAgo(periodDays - 1)
-  const { data: stats, error: statsError } = await supabase
-    .from('dealer_ad_daily_stats')
-    .select(
-      'dealer_id, finn_ad_id, stat_date, carousel_impressions, ad_clicks, cars(title, ad_url, last_seen_at)'
-    )
-    .eq('dealer_id', selectedDealer.id)
-    .gte('stat_date', fromDate)
-    .order('stat_date', { ascending: true })
+  const { data, error } = await supabase.rpc('get_dealer_dashboard_analytics', {
+    p_dealer_id: selectedDealer.id,
+    p_from_date: fromDate,
+  })
 
-  if (statsError) {
-    throw statsError
+  if (error) {
+    throw error
   }
 
   return buildDashboardStats(
     dealers,
     selectedDealer,
-    (stats ?? []) as unknown as StatRow[],
+    data as DashboardAnalyticsRpcResponse | null,
     periodDays
   )
 }
@@ -132,72 +140,29 @@ export async function getDealerDashboardStats(
 function buildDashboardStats(
   dealers: DealerDashboardDealer[],
   selectedDealer: DealerDashboardDealer,
-  stats: StatRow[],
+  analytics: DashboardAnalyticsRpcResponse | null,
   periodDays: DashboardPeriodDays
 ): DealerDashboardStats {
-  const dailyByDate = new Map<string, { impressions: number; clicks: number }>()
-  const adsById = new Map<
-    string,
-    {
-      title: string
-      adUrl?: string
-      impressions: number
-      clicks: number
-      lastSeenAt?: string
-    }
-  >()
+  const dailyStats = (analytics?.dailyStats ?? []).map((daily) => ({
+    ...daily,
+    clickRate: calculateClickRate(daily.clicks, daily.impressions),
+  }))
 
-  for (const row of stats) {
-    const daily = dailyByDate.get(row.stat_date) ?? {
-      impressions: 0,
-      clicks: 0,
-    }
-    daily.impressions += row.carousel_impressions
-    daily.clicks += row.ad_clicks
-    dailyByDate.set(row.stat_date, daily)
-
-    const ad = adsById.get(row.finn_ad_id) ?? {
-      title: row.cars?.title ?? row.finn_ad_id,
-      adUrl: row.cars?.ad_url ?? undefined,
-      impressions: 0,
-      clicks: 0,
-      lastSeenAt: row.cars?.last_seen_at ?? undefined,
-    }
-    ad.impressions += row.carousel_impressions
-    ad.clicks += row.ad_clicks
-    if (row.cars?.last_seen_at && (!ad.lastSeenAt || row.cars.last_seen_at > ad.lastSeenAt)) {
-      ad.lastSeenAt = row.cars.last_seen_at
-    }
-    adsById.set(row.finn_ad_id, ad)
-  }
-
-  const dailyStats = getLastDates(periodDays)
-    .map((date) => {
-      const daily = dailyByDate.get(date) ?? { impressions: 0, clicks: 0 }
-
-      return {
-        date,
-        impressions: daily.impressions,
-        clicks: daily.clicks,
-        clickRate: calculateClickRate(daily.clicks, daily.impressions),
-      }
-    })
-    .reverse()
-
-  const adStats = [...adsById.entries()]
-    .map(([finnAdId, ad]) => ({
-      finnAdId,
+  const adStats = (analytics?.adStats ?? [])
+    .map((ad) => ({
+      finnAdId: ad.finnAdId,
       title: ad.title,
-      adUrl: ad.adUrl,
+      adUrl: ad.adUrl ?? undefined,
       impressions: ad.impressions,
       clicks: ad.clicks,
       clickRate: calculateClickRate(ad.clicks, ad.impressions),
-      lastSeenAt: ad.lastSeenAt,
+      lastSeenAt: ad.lastSeenAt ?? undefined,
     }))
     .sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions)
 
-  const impressions = dailyStats.reduce((sum, day) => sum + day.impressions, 0)
-  const clicks = dailyStats.reduce((sum, day) => sum + day.clicks, 0)
+  const totals = analytics?.totals
+  const impressions = totals?.impressions ?? 0
+  const clicks = totals?.clicks ?? 0
 
   return {
     periodDays,
@@ -207,7 +172,7 @@ function buildDashboardStats(
       impressions,
       clicks,
       clickRate: calculateClickRate(clicks, impressions),
-      activeAds: adStats.length,
+      activeAds: totals?.activeAds ?? 0,
     },
     dailyStats,
     adStats,
@@ -224,10 +189,6 @@ export function normalizeDashboardPeriod(value?: string): DashboardPeriodDays {
   }
 
   return 30
-}
-
-function getLastDates(days: DashboardPeriodDays): string[] {
-  return Array.from({ length: days }, (_, index) => getDateDaysAgo(days - 1 - index))
 }
 
 function getDateDaysAgo(daysAgo: number): string {
