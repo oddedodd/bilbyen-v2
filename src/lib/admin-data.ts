@@ -88,20 +88,40 @@ interface DealerUserRow {
   role: DealerUserRole
 }
 
-interface AdminAnalyticsStatRow {
-  dealer_id: string
-  finn_ad_id: string
-  stat_date: string
-  carousel_impressions: number
-  ad_clicks: number
-  unique_sessions: number
-}
-
 interface AdminUserRow {
   user_id: string
   email: string
   created_at: string
   created_by: string | null
+}
+
+interface AdminAnalyticsRpcResponse {
+  totals?: {
+    impressions?: number
+    clicks?: number
+    uniqueSessions?: number
+    activeAds?: number
+    activeDealers?: number
+  }
+  dailyStats?: AdminAnalyticsRpcDailyStats[]
+  dealerStats?: AdminAnalyticsRpcDealerStats[]
+}
+
+interface AdminAnalyticsRpcDailyStats {
+  date: string
+  impressions: number
+  clicks: number
+}
+
+interface AdminAnalyticsRpcDealerStats {
+  dealerId: string
+  name: string
+  orgId: string
+  groupSlug: DealerGroupSlug
+  impressions: number
+  clicks: number
+  uniqueSessions: number
+  activeAds: number
 }
 
 export async function getAdminUsers(): Promise<AdminUser[]> {
@@ -181,45 +201,19 @@ export async function getAdminAnalyticsOverview({
   direction?: AdminAnalyticsSortDirection
 }): Promise<AdminAnalyticsOverview> {
   const supabase = createSupabaseAdminClient()
-  let dealersQuery = supabase
-    .from('dealers')
-    .select('id, org_id, name, slug, group_slug')
-    .order('name')
-
-  if (group !== 'all') {
-    dealersQuery = dealersQuery.eq('group_slug', group)
-  }
-
-  const { data: dealers, error: dealersError } = await dealersQuery
-
-  if (dealersError) {
-    throw dealersError
-  }
-
-  const dealerRows = (dealers ?? []) as DealerRow[]
-  const dealerIds = dealerRows.map((dealer) => dealer.id)
   const fromDate = getDateDaysAgo(periodDays - 1)
-  let statRows: AdminAnalyticsStatRow[] = []
 
-  if (dealerIds.length > 0) {
-    const { data: stats, error: statsError } = await supabase
-      .from('dealer_ad_daily_stats')
-      .select(
-        'dealer_id, finn_ad_id, stat_date, carousel_impressions, ad_clicks, unique_sessions'
-      )
-      .in('dealer_id', dealerIds)
-      .gte('stat_date', fromDate)
+  const { data, error } = await supabase.rpc('get_admin_analytics_overview', {
+    p_group_slug: group,
+    p_from_date: fromDate,
+  })
 
-    if (statsError) {
-      throw statsError
-    }
-
-    statRows = (stats ?? []) as AdminAnalyticsStatRow[]
+  if (error) {
+    throw error
   }
 
-  return buildAdminAnalyticsOverview({
-    dealers: dealerRows,
-    stats: statRows,
+  return buildAdminAnalyticsOverviewFromRpc({
+    analytics: data as AdminAnalyticsRpcResponse | null,
     group,
     periodDays,
     sort,
@@ -257,98 +251,33 @@ async function getAuthUsersById(): Promise<Map<string, User>> {
   return usersById
 }
 
-function buildAdminAnalyticsOverview({
-  dealers,
-  stats,
+function buildAdminAnalyticsOverviewFromRpc({
+  analytics,
   group,
   periodDays,
   sort,
   direction,
 }: {
-  dealers: DealerRow[]
-  stats: AdminAnalyticsStatRow[]
+  analytics: AdminAnalyticsRpcResponse | null
   group: AdminAnalyticsGroupFilter
   periodDays: AdminAnalyticsPeriodDays
   sort: AdminAnalyticsSortKey
   direction: AdminAnalyticsSortDirection
 }): AdminAnalyticsOverview {
-  const dealerStatsById = new Map<
-    string,
-    {
-      impressions: number
-      clicks: number
-      uniqueSessions: number
-      adIds: Set<string>
-    }
-  >()
-  const dailyByDate = new Map<string, { impressions: number; clicks: number }>()
-  const totalAdIds = new Set<string>()
-
-  for (const row of stats) {
-    const dealerStats = dealerStatsById.get(row.dealer_id) ?? {
-      impressions: 0,
-      clicks: 0,
-      uniqueSessions: 0,
-      adIds: new Set<string>(),
-    }
-    dealerStats.impressions += row.carousel_impressions
-    dealerStats.clicks += row.ad_clicks
-    dealerStats.uniqueSessions += row.unique_sessions
-    dealerStats.adIds.add(row.finn_ad_id)
-    dealerStatsById.set(row.dealer_id, dealerStats)
-    totalAdIds.add(`${row.dealer_id}:${row.finn_ad_id}`)
-
-    const daily = dailyByDate.get(row.stat_date) ?? {
-      impressions: 0,
-      clicks: 0,
-    }
-    daily.impressions += row.carousel_impressions
-    daily.clicks += row.ad_clicks
-    dailyByDate.set(row.stat_date, daily)
-  }
-
-  const dealerStats = dealers
-    .map((dealer) => {
-      const statsForDealer = dealerStatsById.get(dealer.id)
-      const impressions = statsForDealer?.impressions ?? 0
-      const clicks = statsForDealer?.clicks ?? 0
-
-      return {
-        dealerId: dealer.id,
-        name: dealer.name,
-        orgId: dealer.org_id,
-        groupSlug: dealer.group_slug,
-        impressions,
-        clicks,
-        clickRate: calculateClickRate(clicks, impressions),
-        uniqueSessions: statsForDealer?.uniqueSessions ?? 0,
-        activeAds: statsForDealer?.adIds.size ?? 0,
-      }
-    })
+  const dealerStats = (analytics?.dealerStats ?? [])
+    .map((dealer) => ({
+      ...dealer,
+      clickRate: calculateClickRate(dealer.clicks, dealer.impressions),
+    }))
     .sort((a, b) => compareAdminDealerStats(a, b, sort, direction))
 
-  const dailyStats = getLastDates(periodDays)
-    .map((date) => {
-      const daily = dailyByDate.get(date) ?? { impressions: 0, clicks: 0 }
-
-      return {
-        date,
-        impressions: daily.impressions,
-        clicks: daily.clicks,
-        clickRate: calculateClickRate(daily.clicks, daily.impressions),
-      }
-    })
-    .reverse()
-
-  const impressions = dealerStats.reduce(
-    (sum, dealer) => sum + dealer.impressions,
-    0
-  )
-  const clicks = dealerStats.reduce((sum, dealer) => sum + dealer.clicks, 0)
-  const uniqueSessions = dealerStats.reduce(
-    (sum, dealer) => sum + dealer.uniqueSessions,
-    0
-  )
+  const dailyStats = (analytics?.dailyStats ?? []).map((daily) => ({
+    ...daily,
+    clickRate: calculateClickRate(daily.clicks, daily.impressions),
+  }))
+  const totals = analytics?.totals
+  const impressions = totals?.impressions ?? 0
+  const clicks = totals?.clicks ?? 0
 
   return {
     filters: {
@@ -361,11 +290,9 @@ function buildAdminAnalyticsOverview({
       impressions,
       clicks,
       clickRate: calculateClickRate(clicks, impressions),
-      uniqueSessions,
-      activeAds: totalAdIds.size,
-      activeDealers: dealerStats.filter(
-        (dealer) => dealer.impressions > 0 || dealer.clicks > 0
-      ).length,
+      uniqueSessions: totals?.uniqueSessions ?? 0,
+      activeAds: totals?.activeAds ?? 0,
+      activeDealers: totals?.activeDealers ?? 0,
     },
     dailyStats,
     dealerStats,
@@ -411,12 +338,6 @@ function compareAdminDealerStats(
 
 function calculateClickRate(clicks: number, impressions: number): number {
   return impressions > 0 ? clicks / impressions : 0
-}
-
-function getLastDates(days: AdminAnalyticsPeriodDays): string[] {
-  return Array.from({ length: days }, (_, index) =>
-    getDateDaysAgo(days - 1 - index)
-  )
 }
 
 function getDateDaysAgo(daysAgo: number): string {
