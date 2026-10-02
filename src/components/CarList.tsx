@@ -43,6 +43,7 @@ export default function CarList({
   const [sort, setSort] = useState<SortKey>('newest')
   const [filterMake, setFilterMake] = useState('')
   const [filterFuel, setFilterFuel] = useState('')
+  const [filterDealer, setFilterDealer] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
   const [minYear, setMinYear] = useState('')
 
@@ -58,6 +59,18 @@ export default function CarList({
     return [...set].sort()
   }, [cars])
 
+  const dealers = useMemo(() => {
+    const namesByOrgId = new Map<string, string>()
+    for (const car of cars) {
+      if (car.orgId && !namesByOrgId.has(car.orgId)) {
+        namesByOrgId.set(car.orgId, car.dealer ?? car.orgId)
+      }
+    }
+    return [...namesByOrgId]
+      .map(([orgId, name]) => ({ orgId, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'nb'))
+  }, [cars])
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     const maxPriceNum = maxPrice ? Number(maxPrice) : null
@@ -70,11 +83,12 @@ export default function CarList({
       }
       if (filterMake && car.make !== filterMake) return false
       if (filterFuel && car.fuel !== filterFuel) return false
+      if (filterDealer && car.orgId !== filterDealer) return false
       if (maxPriceNum != null && car.price != null && car.price > maxPriceNum) return false
       if (minYearNum != null && car.year != null && car.year < minYearNum) return false
       return true
     })
-  }, [cars, search, filterMake, filterFuel, maxPrice, minYear])
+  }, [cars, search, filterMake, filterFuel, filterDealer, maxPrice, minYear])
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -98,12 +112,14 @@ export default function CarList({
     })
   }, [filtered, sort])
 
-  const hasFilters = search || filterMake || filterFuel || maxPrice || minYear
+  const hasFilters =
+    search || filterMake || filterFuel || filterDealer || maxPrice || minYear
 
   function clearFilters() {
     setSearch('')
     setFilterMake('')
     setFilterFuel('')
+    setFilterDealer('')
     setMaxPrice('')
     setMinYear('')
   }
@@ -181,6 +197,17 @@ export default function CarList({
               <option value="">Alle drivstoff</option>
               {fuels.map((f) => (
                 <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+
+            <select
+              value={filterDealer}
+              onChange={(e) => setFilterDealer(e.target.value)}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-950 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+            >
+              <option value="">Alle forhandlere</option>
+              {dealers.map((d) => (
+                <option key={d.orgId} value={d.orgId}>{d.name}</option>
               ))}
             </select>
 
