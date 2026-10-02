@@ -22,10 +22,8 @@ function AdminDealersLoading() {
 }
 
 async function AdminDealersDashboard() {
-  const [adminUser, dealers] = await Promise.all([
-    requireAdminUser(),
-    getAdminDealers(),
-  ])
+  const adminUser = await requireAdminUser()
+  const dealers = await getAdminDealers()
   const carGroups = dealerGroupList.map((group) => ({
     slug: group.slug,
     name: group.name,

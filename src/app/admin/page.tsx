@@ -51,15 +51,13 @@ async function AdminDashboard({ searchParams }: AdminPageProps) {
     getSearchParam(resolvedSearchParams, 'direction')
   )
 
-  const [adminUser, analyticsOverview] = await Promise.all([
-    requireAdminUser(),
-    getAdminAnalyticsOverview({
-      group,
-      periodDays,
-      sort,
-      direction,
-    }),
-  ])
+  const adminUser = await requireAdminUser()
+  const analyticsOverview = await getAdminAnalyticsOverview({
+    group,
+    periodDays,
+    sort,
+    direction,
+  })
   const carGroups = dealerGroupList.map((group) => ({
     slug: group.slug,
     name: group.name,

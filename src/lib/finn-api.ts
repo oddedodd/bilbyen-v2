@@ -10,6 +10,7 @@ import { getDealersForCarGroup, type CarGroupSlug } from './car-groups'
 import type { Car } from './types'
 
 const FINN_API_BASE = 'https://cache.api.finn.no'
+const FINN_REQUEST_TIMEOUT_MS = 10_000
 
 export async function fetchFinnCars(): Promise<Car[]> {
   'use cache'
@@ -44,9 +45,30 @@ export async function fetchFinnCarsForGroup(
   cacheTag(getFinnCarsGroupCacheTag(groupSlug))
 
   const dealers = await getDealersForCarGroup(groupSlug)
-  const carsByDealer = await Promise.all(
+  const results = await Promise.allSettled(
     dealers.map((dealer) => fetchFinnCarsByOrgId(dealer.orgId))
   )
+
+  const carsByDealer: Car[][] = []
+  const failedOrgIds: string[] = []
+
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      carsByDealer.push(result.value)
+    } else {
+      failedOrgIds.push(dealers[index].orgId)
+      console.error(
+        `Unable to fetch FINN cars for orgId ${dealers[index].orgId}`,
+        result.reason
+      )
+    }
+  })
+
+  // Only fail when every dealer failed, so one broken dealer feed does not
+  // take down the whole group page.
+  if (dealers.length > 0 && failedOrgIds.length === dealers.length) {
+    throw new Error(`FINN API failed for all dealers in ${groupSlug}`)
+  }
 
   return sortNewestFirst(dedupeCars(carsByDealer.flat()))
 }
@@ -65,7 +87,10 @@ export async function fetchFinnCarsByOrgId(orgId: string): Promise<Car[]> {
 
   const res = await fetch(
     `${FINN_API_BASE}/iad/search/car-norway?orgId=${orgId}&rows=1000`,
-    { headers: { 'x-FINN-apikey': apiKey } }
+    {
+      headers: { 'x-FINN-apikey': apiKey },
+      signal: AbortSignal.timeout(FINN_REQUEST_TIMEOUT_MS),
+    }
   )
 
   if (!res.ok) {

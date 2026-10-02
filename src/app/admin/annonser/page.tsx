@@ -26,8 +26,8 @@ function AdminAdsLoading() {
 }
 
 async function AdminAdsDashboard() {
-  const [adminUser, bilbyenCars, bruktbilTrondelagCars] = await Promise.all([
-    requireAdminUser(),
+  const adminUser = await requireAdminUser()
+  const [bilbyenCars, bruktbilTrondelagCars] = await Promise.all([
     fetchBilbyenCars(),
     fetchBruktbilTrondelagCars(),
   ])
