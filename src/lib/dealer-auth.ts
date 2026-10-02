@@ -2,7 +2,11 @@ import type { User } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from './supabase-auth'
 
-export async function requireDealerUser(): Promise<User> {
+/**
+ * Only verifies that the user is signed in. The caller must verify dealer
+ * membership itself, e.g. via the RLS-scoped dealer list in the dashboard data.
+ */
+export async function requireSignedInDealerUser(): Promise<User> {
   const supabase = await createSupabaseServerClient()
   const {
     data: { user },
@@ -12,11 +16,11 @@ export async function requireDealerUser(): Promise<User> {
     redirect('/forhandler/login')
   }
 
-  if (!(await userHasDealerMembership(user.id))) {
-    redirect('/forhandler/login?error=unauthorized')
-  }
-
   return user
+}
+
+export function redirectUnauthorizedDealer(): never {
+  redirect('/forhandler/login?error=unauthorized')
 }
 
 export async function getCurrentDealerUser(): Promise<User | null> {

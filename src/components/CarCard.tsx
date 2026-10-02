@@ -7,6 +7,7 @@ interface CarCardProps {
   car: Car
   href?: string
   variant?: 'default' | 'embed'
+  imageLoading?: 'eager' | 'lazy'
   analytics?: {
     groupSlug: string
     pagePath?: string
@@ -19,6 +20,7 @@ export default function CarCard({
   car,
   href,
   variant = 'default',
+  imageLoading = 'eager',
   analytics,
 }: CarCardProps) {
   const imageUrl = car.imageUrl
@@ -60,6 +62,8 @@ export default function CarCard({
           <img
             src={imageUrl}
             alt={car.title}
+            loading={imageLoading}
+            decoding="async"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (

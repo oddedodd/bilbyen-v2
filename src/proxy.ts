@@ -29,7 +29,10 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  // Refreshes the session cookie when needed. getClaims verifies the JWT
+  // locally when the project uses asymmetric signing keys, avoiding an Auth
+  // round trip; pages still call getUser() for the authoritative check.
+  await supabase.auth.getClaims()
 
   return response
 }

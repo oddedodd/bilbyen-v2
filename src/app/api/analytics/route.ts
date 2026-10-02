@@ -4,6 +4,8 @@ import {
   isCarGroupSlug,
   type CarGroupSlug,
 } from '@/lib/car-groups'
+import { fetchFinnCarsForGroup } from '@/lib/finn-api'
+import type { Car } from '@/lib/types'
 
 type AnalyticsEventType = 'carousel_impression' | 'ad_click'
 
@@ -29,6 +31,8 @@ interface AnalyticsPayload {
 
 const MAX_BODY_BYTES = 10_000
 const MAX_EVENTS_PER_MINUTE = 120
+const MAX_TRACKED_CLIENTS = 10_000
+// In-memory and per server instance: limits bursts, not a global guarantee.
 const rateLimits = new Map<string, { count: number; resetAt: number }>()
 
 export async function POST(request: Request) {
@@ -39,11 +43,11 @@ export async function POST(request: Request) {
 
     const payload = await request.json()
     const validated = validateAnalyticsPayload(payload)
-    await validateDealerGroup(validated.car.orgId, validated.groupSlug)
+    const car = await resolveTrackedCar(validated.car, validated.groupSlug)
 
     await recordCarAnalyticsEvent({
       eventType: validated.eventType,
-      car: validated.car,
+      car,
       groupSlug: validated.groupSlug,
       pagePath: validated.pagePath,
       carouselKey: validated.carouselKey,
@@ -146,6 +150,10 @@ function enforceRateLimit(clientIp: string) {
   const current = rateLimits.get(clientIp)
 
   if (!current || current.resetAt <= now) {
+    if (rateLimits.size >= MAX_TRACKED_CLIENTS) {
+      pruneExpiredRateLimits(now)
+    }
+
     rateLimits.set(clientIp, { count: 1, resetAt: now + 60_000 })
     return
   }
@@ -157,9 +165,44 @@ function enforceRateLimit(clientIp: string) {
   current.count += 1
 }
 
+function pruneExpiredRateLimits(now: number) {
+  for (const [clientIp, limit] of rateLimits) {
+    if (limit.resetAt <= now) {
+      rateLimits.delete(clientIp)
+    }
+  }
+
+  // Every entry is still active (e.g. many distinct IPs within one minute):
+  // reset rather than let the map grow without bound.
+  if (rateLimits.size >= MAX_TRACKED_CLIENTS) {
+    rateLimits.clear()
+  }
+}
+
 function readClientIp(request: Request): string {
   const forwardedFor = request.headers.get('x-forwarded-for')
   return forwardedFor?.split(',')[0]?.trim() || 'unknown'
+}
+
+async function resolveTrackedCar(
+  clientCar: AnalyticsPayload['car'],
+  groupSlug: CarGroupSlug
+): Promise<Car> {
+  const cars = await fetchFinnCarsForGroup(groupSlug).catch((error) => {
+    console.error('Unable to load FINN cars for analytics lookup', error)
+    return []
+  })
+  const serverCar = cars.find((car) => car.id === clientCar.id)
+
+  if (serverCar) {
+    // Trust car details from the cached FINN data, not from the client.
+    return serverCar
+  }
+
+  // The car is not in the cached list (e.g. just listed or removed). Keep
+  // counting the event with validated client data so stats are not lost.
+  await validateDealerGroup(clientCar.orgId, groupSlug)
+  return clientCar
 }
 
 async function validateDealerGroup(orgId: string, groupSlug: CarGroupSlug) {

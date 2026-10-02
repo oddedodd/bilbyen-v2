@@ -7,7 +7,10 @@ import {
   type RankingPoint,
   type TrafficTrendPoint,
 } from '@/components/analytics-charts'
-import { requireDealerUser } from '@/lib/dealer-auth'
+import {
+  redirectUnauthorizedDealer,
+  requireSignedInDealerUser,
+} from '@/lib/dealer-auth'
 import {
   type DashboardPeriodDays,
   getDealerDashboardStats,
@@ -56,13 +59,19 @@ async function DealerDashboard({
 }: DealerDashboardPageProps) {
   await connection()
 
-  const user = await requireDealerUser()
+  const user = await requireSignedInDealerUser()
   const resolvedSearchParams = await searchParams
   const dealerId = getSearchParam(resolvedSearchParams, 'dealer')
   const periodDays = normalizeDashboardPeriod(
     getSearchParam(resolvedSearchParams, 'period')
   )
   const stats = await getDealerDashboardStats(dealerId, periodDays)
+
+  // The dealer list is scoped by RLS to the user's memberships, so an empty
+  // list means the user has no dealer access.
+  if (stats.dealers.length === 0) {
+    redirectUnauthorizedDealer()
+  }
 
   return (
     <main className="min-h-screen bg-[#e8eef4] px-3 py-4 text-[#102a43] sm:px-5 lg:px-8">
