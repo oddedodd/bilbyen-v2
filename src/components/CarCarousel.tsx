@@ -41,7 +41,6 @@ export default function CarCarousel({
 }: CarCarouselProps) {
   const [swiper, setSwiper] = useState<SwiperType | null>(null)
   const [isPlaying, setIsPlaying] = useState(true)
-  const visibleCars = cars.slice(0, 20)
   const carouselKey = `carousel:${groupSlug}`
   const isEmbed = Boolean(embedHeader)
 
@@ -83,6 +82,8 @@ export default function CarCarousel({
 
             <Link
               href={href}
+              target="_blank"
+              rel="noopener noreferrer"
               className="hidden shrink-0 items-center justify-center rounded-full bg-white px-7 py-3 text-base font-extrabold shadow-sm transition hover:bg-white/90 sm:inline-flex"
               style={{ color: embedHeader.backgroundColor }}
             >
@@ -103,6 +104,8 @@ export default function CarCarousel({
             <div className="hidden items-center sm:flex">
               <Link
                 href={href}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="rounded-lg bg-gray-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
               >
                 Se alle
@@ -111,7 +114,7 @@ export default function CarCarousel({
           </div>
         )}
 
-        {visibleCars.length === 0 ? (
+        {cars.length === 0 ? (
           <div className="m-8 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-12 text-center text-sm text-gray-500">
             Ingen biler funnet.
           </div>
@@ -120,7 +123,7 @@ export default function CarCarousel({
             <Suspense
               fallback={
                 <CarouselFallback
-                  cars={visibleCars}
+                  cars={cars}
                   carouselKey={carouselKey}
                   embedSlug={embedSlug}
                   isEmbed={isEmbed}
@@ -136,7 +139,7 @@ export default function CarCarousel({
                   disableOnInteraction: false,
                   pauseOnMouseEnter: true,
                 }}
-                loop={visibleCars.length > 3}
+                loop={cars.length > 3}
                 slidesPerView={1}
                 spaceBetween={isEmbed ? 16 : 16}
                 breakpoints={{
@@ -153,7 +156,7 @@ export default function CarCarousel({
                     : '-mx-4 px-4 pb-4 [&_.swiper-slide]:h-auto [&_.swiper-slide]:self-stretch [&_.swiper-wrapper]:items-stretch'
                 }
               >
-                {visibleCars.map((car, index) => (
+                {cars.map((car, index) => (
                   <SwiperSlide key={car.id} className="!flex h-auto">
                     <TrackedCarouselCard
                       car={car}
