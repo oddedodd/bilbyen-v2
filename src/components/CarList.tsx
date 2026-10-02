@@ -24,6 +24,9 @@ const SORT_LABELS: Record<SortKey, string> = {
   'mileage-desc': 'Km: høy–lav',
 }
 
+// Roughly the first two rows on desktop; the rest load as the user scrolls.
+const EAGER_IMAGE_COUNT = 8
+
 interface CarListProps {
   cars: Car[]
   groupSlug: string
@@ -249,10 +252,13 @@ export default function CarList({
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {sorted.map((car) => (
+            {sorted.map((car, index) => (
               <CarCard
                 key={car.id}
                 car={car}
+                imageLoading={
+                  index < EAGER_IMAGE_COUNT ? 'eager' : 'lazy'
+                }
                 analytics={trackAnalytics ? { groupSlug } : undefined}
               />
             ))}

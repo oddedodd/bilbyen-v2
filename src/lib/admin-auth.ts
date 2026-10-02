@@ -43,15 +43,22 @@ export async function ensureAdminAccess(user: User): Promise<boolean> {
 
   const isBootstrapAdmin = isBootstrapAdminEmail(email)
   const supabase = createSupabaseAdminClient()
-  const { error: countError } = await supabase
+  const { data, error } = await supabase
     .from('admin_users')
-    .select('user_id', { count: 'exact', head: true })
+    .select('user_id, email')
+    .eq('user_id', user.id)
+    .maybeSingle()
 
-  if (countError) {
+  if (error) {
+    // Keep ADMIN_EMAILS as a failsafe if admin_users cannot be read.
     return isBootstrapAdmin
   }
 
-  if (isBootstrapAdmin) {
+  if (!data) {
+    if (!isBootstrapAdmin) {
+      return false
+    }
+
     await supabase.from('admin_users').upsert(
       {
         user_id: user.id,
@@ -61,16 +68,6 @@ export async function ensureAdminAccess(user: User): Promise<boolean> {
     )
 
     return true
-  }
-
-  const { data, error } = await supabase
-    .from('admin_users')
-    .select('user_id, email')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  if (error || !data) {
-    return false
   }
 
   if (data.email.toLowerCase() !== email) {

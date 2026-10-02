@@ -31,6 +31,8 @@ interface AnalyticsPayload {
 
 const MAX_BODY_BYTES = 10_000
 const MAX_EVENTS_PER_MINUTE = 120
+const MAX_TRACKED_CLIENTS = 10_000
+// In-memory and per server instance: limits bursts, not a global guarantee.
 const rateLimits = new Map<string, { count: number; resetAt: number }>()
 
 export async function POST(request: Request) {
@@ -148,6 +150,10 @@ function enforceRateLimit(clientIp: string) {
   const current = rateLimits.get(clientIp)
 
   if (!current || current.resetAt <= now) {
+    if (rateLimits.size >= MAX_TRACKED_CLIENTS) {
+      pruneExpiredRateLimits(now)
+    }
+
     rateLimits.set(clientIp, { count: 1, resetAt: now + 60_000 })
     return
   }
@@ -157,6 +163,20 @@ function enforceRateLimit(clientIp: string) {
   }
 
   current.count += 1
+}
+
+function pruneExpiredRateLimits(now: number) {
+  for (const [clientIp, limit] of rateLimits) {
+    if (limit.resetAt <= now) {
+      rateLimits.delete(clientIp)
+    }
+  }
+
+  // Every entry is still active (e.g. many distinct IPs within one minute):
+  // reset rather than let the map grow without bound.
+  if (rateLimits.size >= MAX_TRACKED_CLIENTS) {
+    rateLimits.clear()
+  }
 }
 
 function readClientIp(request: Request): string {
