@@ -178,7 +178,7 @@ export default function CarCarousel({
               aria-label={`Forrige biler i ${title}`}
               className={
                 isEmbed
-                  ? 'absolute left-3 top-1/2 z-10 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white text-xl text-gray-950 shadow-xl ring-1 ring-gray-200 transition hover:bg-gray-50'
+                  ? 'absolute left-3 top-[11.75rem] z-10 grid h-12 w-12 place-items-center rounded-full bg-white text-xl text-gray-950 shadow-xl ring-1 ring-gray-200 transition hover:bg-gray-50'
                   : 'absolute left-2 top-1/2 z-10 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-gray-950 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50'
               }
             >
@@ -187,7 +187,7 @@ export default function CarCarousel({
             <div
               className={
                 isEmbed
-                  ? 'absolute right-3 top-1/2 z-10 flex -translate-y-[5.25rem] flex-col gap-3'
+                  ? 'absolute right-3 top-[8rem] z-10 flex flex-col gap-3'
                   : 'absolute right-2 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-3'
               }
             >
