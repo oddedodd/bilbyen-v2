@@ -58,7 +58,7 @@ export default function CarCarousel({
   }
 
   return (
-    <section className={isEmbed ? '' : 'py-8'}>
+    <section className={isEmbed ? 'pt-3' : 'py-8'}>
       <div
         className={
           isEmbed
