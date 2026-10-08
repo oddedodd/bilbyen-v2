@@ -46,7 +46,7 @@ export default function CarCard({
       onClick={trackClick}
       className={
         isEmbed
-          ? 'group flex h-[27rem] w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:border-slate-300 hover:shadow-md'
+          ? 'group flex h-[27rem] w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-colors hover:border-slate-300'
           : 'group flex h-full min-h-[23rem] w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:border-gray-300 hover:shadow-md sm:min-h-[22rem] lg:min-h-[27rem]'
       }
     >

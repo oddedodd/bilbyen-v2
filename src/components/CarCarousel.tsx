@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Swiper as SwiperType } from 'swiper'
 import { A11y, Autoplay } from 'swiper/modules'
 import { Swiper, SwiperSlide } from 'swiper/react'
@@ -58,17 +58,17 @@ export default function CarCarousel({
   }
 
   return (
-    <section className={isEmbed ? 'p-3 sm:p-4' : 'py-8'}>
+    <section className={isEmbed ? '' : 'py-8'}>
       <div
         className={
           isEmbed
-            ? 'mx-auto max-w-[940px] overflow-hidden rounded-3xl bg-white shadow-xl ring-1 ring-slate-200'
+            ? 'mx-auto max-w-[940px] overflow-hidden rounded-3xl border border-slate-200 bg-white'
             : 'mx-auto max-w-7xl px-4'
         }
       >
         {embedHeader ? (
           <div
-            className="flex flex-col gap-4 px-6 py-4 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8"
+            className="flex flex-col gap-4 px-6 py-3 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8"
             style={{ backgroundColor: embedHeader.backgroundColor }}
           >
             <div className="flex min-w-0 items-center">
@@ -84,7 +84,7 @@ export default function CarCarousel({
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden shrink-0 items-center justify-center rounded-full bg-white px-7 py-3 text-base font-extrabold shadow-sm transition hover:bg-white/90 sm:inline-flex"
+              className="hidden shrink-0 items-center justify-center rounded-full bg-white px-5 py-2 text-sm font-extrabold transition hover:bg-white/90 sm:inline-flex"
               style={{ color: embedHeader.backgroundColor }}
             >
               Se alle
@@ -119,58 +119,49 @@ export default function CarCarousel({
             Ingen biler funnet.
           </div>
         ) : (
-          <div className={isEmbed ? 'relative px-6 py-7 sm:px-8' : 'relative'}>
-            <Suspense
-              fallback={
-                <CarouselFallback
-                  cars={cars}
-                  carouselKey={carouselKey}
-                  embedSlug={embedSlug}
-                  isEmbed={isEmbed}
-                  trackAnalytics={trackAnalytics}
-                />
+          <div className={isEmbed ? 'relative px-6 py-5 sm:px-8' : 'relative'}>
+            <Swiper
+              modules={[A11y, Autoplay]}
+              onSwiper={setSwiper}
+              autoplay={{
+                delay: 4500,
+                disableOnInteraction: false,
+                pauseOnMouseEnter: true,
+              }}
+              loop={cars.length > 3}
+              slidesPerView={1}
+              spaceBetween={isEmbed ? 16 : 16}
+              breakpoints={{
+                640: {
+                  slidesPerView: isEmbed ? 2.35 : 3,
+                },
+                900: {
+                  slidesPerView: isEmbed ? 2.75 : 3,
+                },
+              }}
+              // Before Swiper initializes (e.g. while the page hydrates), slides
+              // fall back to swiper.css' full width. Mirror the breakpoints in
+              // CSS so the server-rendered layout matches the initialized one.
+              className={
+                isEmbed
+                  ? '[&_.swiper-slide]:h-auto [&_.swiper-slide]:self-stretch [&_.swiper-wrapper]:items-stretch [&:not(.swiper-initialized)_.swiper-wrapper]:gap-4 sm:[&:not(.swiper-initialized)_.swiper-slide]:w-[calc((100%-21.6px)/2.35)]! min-[56.25rem]:[&:not(.swiper-initialized)_.swiper-slide]:w-[calc((100%-28px)/2.75)]!'
+                  : '-mx-4 px-4 pb-4 [&_.swiper-slide]:h-auto [&_.swiper-slide]:self-stretch [&_.swiper-wrapper]:items-stretch [&:not(.swiper-initialized)_.swiper-wrapper]:gap-4 sm:[&:not(.swiper-initialized)_.swiper-slide]:w-[calc((100%-32px)/3)]!'
               }
             >
-              <Swiper
-                modules={[A11y, Autoplay]}
-                onSwiper={setSwiper}
-                autoplay={{
-                  delay: 4500,
-                  disableOnInteraction: false,
-                  pauseOnMouseEnter: true,
-                }}
-                loop={cars.length > 3}
-                slidesPerView={1}
-                spaceBetween={isEmbed ? 16 : 16}
-                breakpoints={{
-                  640: {
-                    slidesPerView: isEmbed ? 2.35 : 3,
-                  },
-                  900: {
-                    slidesPerView: isEmbed ? 2.75 : 3,
-                  },
-                }}
-                className={
-                  isEmbed
-                    ? 'pb-1 [&_.swiper-slide]:h-auto [&_.swiper-slide]:self-stretch [&_.swiper-wrapper]:items-stretch'
-                    : '-mx-4 px-4 pb-4 [&_.swiper-slide]:h-auto [&_.swiper-slide]:self-stretch [&_.swiper-wrapper]:items-stretch'
-                }
-              >
-                {cars.map((car, index) => (
-                  <SwiperSlide key={car.id} className="!flex h-auto">
-                    <TrackedCarouselCard
-                      car={car}
-                      carouselKey={carouselKey}
-                      embedSlug={embedSlug}
-                      groupSlug={groupSlug}
-                      isEmbed={isEmbed}
-                      position={index + 1}
-                      trackAnalytics={trackAnalytics}
-                    />
-                  </SwiperSlide>
-                ))}
-              </Swiper>
-            </Suspense>
+              {cars.map((car, index) => (
+                <SwiperSlide key={car.id} className="!flex h-auto">
+                  <TrackedCarouselCard
+                    car={car}
+                    carouselKey={carouselKey}
+                    embedSlug={embedSlug}
+                    groupSlug={groupSlug}
+                    isEmbed={isEmbed}
+                    position={index + 1}
+                    trackAnalytics={trackAnalytics}
+                  />
+                </SwiperSlide>
+              ))}
+            </Swiper>
 
             <button
               type="button"
@@ -178,7 +169,7 @@ export default function CarCarousel({
               aria-label={`Forrige biler i ${title}`}
               className={
                 isEmbed
-                  ? 'absolute left-3 top-[11.75rem] z-10 grid h-12 w-12 place-items-center rounded-full bg-white text-xl text-gray-950 shadow-xl ring-1 ring-gray-200 transition hover:bg-gray-50'
+                  ? 'absolute left-3 top-[11.25rem] z-10 grid h-12 w-12 place-items-center rounded-full bg-white text-xl text-gray-950 shadow-xl ring-1 ring-gray-200 transition hover:bg-gray-50'
                   : 'absolute left-2 top-1/2 z-10 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-gray-950 shadow-lg ring-1 ring-gray-200 transition hover:bg-gray-50'
               }
             >
@@ -187,7 +178,7 @@ export default function CarCarousel({
             <div
               className={
                 isEmbed
-                  ? 'absolute right-3 top-[8rem] z-10 flex flex-col gap-3'
+                  ? 'absolute right-3 top-[7.5rem] z-10 flex flex-col gap-3'
                   : 'absolute right-2 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-3'
               }
             >
@@ -224,48 +215,6 @@ export default function CarCarousel({
         )}
       </div>
     </section>
-  )
-}
-
-function CarouselFallback({
-  cars,
-  carouselKey,
-  embedSlug,
-  isEmbed,
-  trackAnalytics,
-}: {
-  cars: Car[]
-  carouselKey: string
-  embedSlug?: EmbedSlug
-  isEmbed: boolean
-  trackAnalytics: boolean
-}) {
-  return (
-    <div
-      className={
-        isEmbed
-          ? 'grid grid-cols-1 gap-6 sm:grid-cols-3'
-          : '-mx-4 grid grid-cols-1 gap-4 px-4 pb-4 sm:grid-cols-3'
-      }
-    >
-      {cars.slice(0, 3).map((car, index) => (
-        <CarCard
-          key={car.id}
-          car={car}
-          variant={isEmbed ? 'embed' : 'default'}
-          href={
-            trackAnalytics && embedSlug
-              ? getEmbedClickHref({
-                  carId: car.id,
-                  carouselKey,
-                  embedSlug,
-                  position: index + 1,
-                })
-              : undefined
-          }
-        />
-      ))}
-    </div>
   )
 }
 
