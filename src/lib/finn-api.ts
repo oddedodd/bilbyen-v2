@@ -12,8 +12,12 @@ import type { Car } from './types'
 const FINN_API_BASE = 'https://cache.api.finn.no'
 const FINN_REQUEST_TIMEOUT_MS = 10_000
 
+// FINN lookups use the remote cache so every serverless instance shares one
+// entry per dealer. Plain 'use cache' is in-memory per instance on Vercel,
+// which misses often and multiplies FINN API calls.
+
 export async function fetchFinnCars(): Promise<Car[]> {
-  'use cache'
+  'use cache: remote'
   cacheLife(CAR_DATA_CACHE_LIFE)
   cacheTag(FINN_CARS_CACHE_TAG)
 
@@ -39,7 +43,7 @@ export async function fetchBruktbilTrondelagCars(): Promise<Car[]> {
 export async function fetchFinnCarsForGroup(
   groupSlug: CarGroupSlug
 ): Promise<Car[]> {
-  'use cache'
+  'use cache: remote'
   cacheLife(CAR_DATA_CACHE_LIFE)
   cacheTag(FINN_CARS_CACHE_TAG)
   cacheTag(getFinnCarsGroupCacheTag(groupSlug))
@@ -74,7 +78,7 @@ export async function fetchFinnCarsForGroup(
 }
 
 export async function fetchFinnCarsByOrgId(orgId: string): Promise<Car[]> {
-  'use cache'
+  'use cache: remote'
   cacheLife(CAR_DATA_CACHE_LIFE)
   cacheTag(FINN_CARS_CACHE_TAG)
   cacheTag(getFinnOrgCacheTag(orgId))
@@ -84,6 +88,9 @@ export async function fetchFinnCarsByOrgId(orgId: string): Promise<Car[]> {
   if (!apiKey) {
     throw new Error('FINN_API_KEY must be set in environment')
   }
+
+  // Logged so FINN usage can be counted in the Vercel logs.
+  console.info(`FINN API request for orgId ${orgId}`)
 
   const res = await fetch(
     `${FINN_API_BASE}/iad/search/car-norway?orgId=${orgId}&rows=1000`,

@@ -4,8 +4,6 @@ import {
   isCarGroupSlug,
   type CarGroupSlug,
 } from '@/lib/car-groups'
-import { fetchFinnCarsForGroup } from '@/lib/finn-api'
-import type { Car } from '@/lib/types'
 
 type AnalyticsEventType = 'carousel_impression' | 'ad_click'
 
@@ -43,11 +41,14 @@ export async function POST(request: Request) {
 
     const payload = await request.json()
     const validated = validateAnalyticsPayload(payload)
-    const car = await resolveTrackedCar(validated.car, validated.groupSlug)
+    // Validate against the dealer list instead of looking the car up in FINN
+    // data: this route runs for every impression, and a FINN lookup here
+    // multiplied API calls on serverless cache misses.
+    await validateDealerGroup(validated.car.orgId, validated.groupSlug)
 
     await recordCarAnalyticsEvent({
       eventType: validated.eventType,
-      car,
+      car: validated.car,
       groupSlug: validated.groupSlug,
       pagePath: validated.pagePath,
       carouselKey: validated.carouselKey,
@@ -182,27 +183,6 @@ function pruneExpiredRateLimits(now: number) {
 function readClientIp(request: Request): string {
   const forwardedFor = request.headers.get('x-forwarded-for')
   return forwardedFor?.split(',')[0]?.trim() || 'unknown'
-}
-
-async function resolveTrackedCar(
-  clientCar: AnalyticsPayload['car'],
-  groupSlug: CarGroupSlug
-): Promise<Car> {
-  const cars = await fetchFinnCarsForGroup(groupSlug).catch((error) => {
-    console.error('Unable to load FINN cars for analytics lookup', error)
-    return []
-  })
-  const serverCar = cars.find((car) => car.id === clientCar.id)
-
-  if (serverCar) {
-    // Trust car details from the cached FINN data, not from the client.
-    return serverCar
-  }
-
-  // The car is not in the cached list (e.g. just listed or removed). Keep
-  // counting the event with validated client data so stats are not lost.
-  await validateDealerGroup(clientCar.orgId, groupSlug)
-  return clientCar
 }
 
 async function validateDealerGroup(orgId: string, groupSlug: CarGroupSlug) {
